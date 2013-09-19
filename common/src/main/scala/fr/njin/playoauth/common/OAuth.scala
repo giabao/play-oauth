@@ -7,6 +7,12 @@ import types._
  */
 object OAuth {
 
+
+  object ResponseType {
+    val Code = "code"
+  }
+
+  /*
   object HttpMethod {
     val POST = "POST"
     val GET = "GET"
@@ -28,21 +34,28 @@ object OAuth {
     val URL_ENCODED = "application/x-www-form-urlencoded"
     val JSON = "application/json"
   }
+  */
 
   val OauthResponseType = "response_type"
   val OauthClientId = "client_id"
-  val OAUTH_CLIENT_SECRET = "client_secret"
+  val OauthClientSecret = "client_secret"
   val OauthRedirectUri = "redirect_uri"
+  /*
   val OAUTH_USERNAME = "username"
   val OAUTH_PASSWORD = "password"
   val OAUTH_ASSERTION_TYPE = "assertion_type"
   val OAUTH_ASSERTION = "assertion"
+  */
   val OauthScope = "scope"
   val OauthState = "state"
+  val OauthError = "error"
+  val OauthErrorDescription = "error_description"
+  /*
   val OAUTH_GRANT_TYPE = "grant_type"
 
   val OAUTH_HEADER_NAME = "Bearer"
-
+  */
+  /*
   //Authorization response params
   val OAUTH_CODE = "code"
   val OAUTH_ACCESS_TOKEN = "access_token"
@@ -60,10 +73,18 @@ object OAuth {
   val DEFAULT_TOKEN_TYPE = Bearer
 
   val OAUTH_VERSION_DIFFER = "oauth_signature_method"
-
+  */
 
   var ErrorClientMissing = "error.missing.clientId"
   val ErrorClientNotFound = "error.client.notfound"
   val ErrorRedirectURIMissing = "error.redirectUri.missing"
+  val ErrorRedirectURIInvalid = "error.redirectUri.invalid"
+
+  object ErrorCode {
+    val InvalidRequest = "invalid_request"
+    val UnauthorizedClient = "unauthorized_client"
+    val AccessDenied = "access_denied"
+    val UnsupportedResponseType = "unsupported_response_type"
+  }
 
 }
