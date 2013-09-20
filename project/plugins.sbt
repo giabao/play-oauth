@@ -14,4 +14,4 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8")
 
 //addSbtPlugin("com.github.theon" %% "xsbt-coveralls-plugin" % "0.0.4")
 
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.2.0-RC1")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.2.0")
