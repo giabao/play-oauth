@@ -1,6 +1,6 @@
 package fr.njin.playoauth.as.endpoints
 
-import play.api.mvc.{Action, Controller}
+import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.data.Forms._
 import play.api.data.Form
@@ -12,6 +12,9 @@ import fr.njin.playoauth.common
 import Constraints._
 import scala.util.Either
 import scala.Predef._
+import scala.Some
+import play.api.mvc.SimpleResult
+import play.api.mvc.AnyContentAsFormUrlEncoded
 
 /**
  * User: bathily
@@ -65,7 +68,8 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope](
     clientRepository.delete(client)
   }
 
-  def authorize(implicit ec:ExecutionContext) = Action.async { implicit request =>
+  def authorize(f:(AuthzRequest, OauthClient) => Request[Map[String, Seq[String]]] => Future[SimpleResult])(implicit ec:ExecutionContext) = Action.async(BodyParsers.parse.urlFormEncoded) { implicit request =>
+
     AuthzRequest.authorizeRequestForm.bindFromRequest.fold(f => {
       f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
         .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
@@ -82,9 +86,9 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope](
 
         val url = client.redirectUri.orElse(oauthzRequest.redirectUri).get
 
-        Future.find(authzValidator.map(_(oauthzRequest, client)(ec)))(_.isRight).map(_ match {
-          case Some(e) => Redirect(url, errorQuery(e.right.get, oauthzRequest.state), FOUND)
-          case _ => Ok
+        Future.find(authzValidator.map(_(oauthzRequest, client)(ec)))(_.isRight).flatMap(_ match {
+          case Some(e) => Future.successful(Redirect(url, errorQuery(e.right.get, oauthzRequest.state), FOUND))
+          case _ => f(oauthzRequest, client)(request)
         })
 
       }}

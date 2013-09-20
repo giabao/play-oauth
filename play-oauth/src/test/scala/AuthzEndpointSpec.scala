@@ -5,10 +5,10 @@ import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.AnyContentAsFormUrlEncoded
+import play.api.mvc.{Results, AnyContentAsFormUrlEncoded}
 import play.api.test._
 import play.api.test.Helpers._
-import scala.concurrent.{ExecutionContext, Await}
+import scala.concurrent.{Future, ExecutionContext, Await}
 import scala.concurrent.duration._
 import com.github.theon.uri.Uri.parse
 import Utils._
@@ -47,17 +47,17 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     import ExecutionContext.Implicits.global
 
     "if the client identifier is missing" in new AuthzEndpoint {
-      val r = endpoint.authorize.apply(FakeRequest())
+      val r = authOk.apply(FakeRequest())
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorClientMissing)
     }
 
     "if the client identifier is invalid" in new AuthzEndpoint {
-      val r = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> "1"))
+      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> "1"))
       status(r) must equalTo(NOT_FOUND)
       contentAsString(r) must equalTo(OAuth.ErrorClientNotFound)
 
-      val r2 = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(
+      val r2 = authOk.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> "1",
         OAuth.OauthResponseType -> OAuth.ResponseType.Code
       ))
@@ -66,13 +66,13 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "due to a missing redirection URI" in new AuthzEndPointWithClients {
-      val r = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
+      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorRedirectURIMissing)
     }
 
     "due to an invalid redirection URI" in new AuthzEndPointWithClients {
-      val r = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> ClientWithoutURI,
         OAuth.OauthRedirectUri -> InvalidURI
       ))
@@ -81,7 +81,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "due to an mismatching redirection URI" in new AuthzEndPointWithClients {
-      val r = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
+      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorRedirectURIMissing)
     }
@@ -163,7 +163,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
   def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsFormUrlEncoded]])(implicit ec:ExecutionContext) = {
     name in new AuthzEndPointWithClients {
       requests.map{ request =>
-        val r = endpoint.authorize.apply(request)
+        val r = authOk.apply(request)
         status(r) must equalTo(FOUND)
         val redirection = redirectLocation(r)
         redirection must not beNone
@@ -192,6 +192,8 @@ trait AuthzEndpoint extends Scope {
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
   lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
   lazy val endpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope](factory, repository, scopeRepository)
+
+  lazy val authOk = endpoint.authorize((authzRequest, oauthClient) => request => {Future.successful(Results.Ok)})
 }
 
 trait AuthzEndPointWithClients extends AuthzEndpoint {
