@@ -1,6 +1,6 @@
 import fr.njin.playoauth.as.endpoints
-import fr.njin.playoauth.as.endpoints.{InMemoryOauthClientRepository, UUIDOauthClientFactory}
-import fr.njin.playoauth.common.client.{BasicOauthClient, BasicOauthClientInfo}
+import fr.njin.playoauth.as.endpoints.{InMemoryOauthScopeRepository, InMemoryOauthClientRepository, UUIDOauthClientFactory}
+import fr.njin.playoauth.common.client.{BasicOauthScope, BasicOauthClient, BasicOauthClientInfo}
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
@@ -59,7 +59,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
       val r2 = endpoint.authorize.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> "1",
-        OAuth.OauthResponseType -> "code"
+        OAuth.OauthResponseType -> OAuth.ResponseType.Code
       ))
       status(r2) must equalTo(NOT_FOUND)
       contentAsString(r2) must equalTo(OAuth.ErrorClientNotFound)
@@ -106,14 +106,14 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
         /*
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "dummy"
+          OAuth.OauthResponseType -> "unknown_code"
         )
         */
       ),
       "includes a parameter more than once" -> Seq(
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "code",
+          OAuth.OauthResponseType -> OAuth.ResponseType.Code,
           OAuth.OauthClientId -> ClientWithURI
         )
       )
@@ -123,17 +123,18 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
       "The client is not authorized to request an authorization code using this method." -> Seq(
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthClientId -> UnauthorizedClient,
-          OAuth.OauthResponseType -> "code"
+          OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
       )
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.UnauthorizedClient, test._2))
 
     Seq(
       "The resource owner or authorization server denied the request." -> Seq(
+        //TODO
         /*
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "code"
+          OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
         */
       )
@@ -143,11 +144,20 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
       "The authorization server does not support obtaining an authorization code using this method." -> Seq(
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "dummy"
+          OAuth.OauthResponseType -> "unknown_code"
         )
       )
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.UnsupportedResponseType, test._2))
 
+    Seq(
+      "The requested scope is invalid, unknown, or malformed." -> Seq(
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> ClientWithURI,
+          OAuth.OauthResponseType -> OAuth.ResponseType.Code,
+          OAuth.OauthScope -> "unknown_scope"
+        )
+      )
+    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidScope, test._2))
   }
 
   def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsFormUrlEncoded]])(implicit ec:ExecutionContext) = {
@@ -180,7 +190,8 @@ trait AuthzEndpoint extends Scope {
   val timeout = 1 seconds
   lazy val factory = new UUIDOauthClientFactory()
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
-  lazy val endpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient](factory, repository)
+  lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
+  lazy val endpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope](factory, repository, scopeRepository)
 }
 
 trait AuthzEndPointWithClients extends AuthzEndpoint {
@@ -192,5 +203,9 @@ trait AuthzEndPointWithClients extends AuthzEndpoint {
     ClientWithURI -> BasicOauthClient(ClientWithURI, ClientWithURI, new BasicOauthClientInfo(Some(RedirectURI))),
     ClientWithInvalidURI -> BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, new BasicOauthClientInfo(Some(InvalidURI))),
     UnauthorizedClient -> BasicOauthClient(UnauthorizedClient, UnauthorizedClient, new BasicOauthClientInfo(Some(RedirectURI), authorized = false))
+  ))
+  override lazy val scopeRepository: InMemoryOauthScopeRepository[BasicOauthScope] = new InMemoryOauthScopeRepository[BasicOauthScope](Map(
+    "scope1" -> new BasicOauthScope("scope1"),
+    "scope2" -> new BasicOauthScope("scope2")
   ))
 }

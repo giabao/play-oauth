@@ -10,72 +10,94 @@ import fr.njin.playoauth.common.client._
 import java.util.UUID
 import fr.njin.playoauth.common
 import Constraints._
+import scala.util.Either
+import scala.Predef._
+
 /**
  * User: bathily
  * Date: 17/09/13
  */
-class AuthzEndpoint[I <: OauthClientInfo , T <: OauthClient](factory: OauthClientFactory[I , T],
-                                     repository: OauthClientRepository[T]) extends Controller with common.Logger {
+class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope](
+  clientFactory: OauthClientFactory[I , T],
+  clientRepository: OauthClientRepository[T],
+  scopeRepository: OauthScopeRepository[SC]
+) extends Controller with common.Logger {
 
 
-  case class OAuthorizeRequest(responseType: String, clientId: String, redirectUri: Option[String], scope: Option[String], state: Option[String])
+  type AuthzValidation =  (AuthzRequest, OauthClient) => ExecutionContext => Future[Either[Boolean, Map[String, Seq[String]]]]
 
-  val authorizeRequest = Form (
-    mapping(
-      OAuth.OauthResponseType -> nonEmptyText,
-      OAuth.OauthClientId -> nonEmptyText,
-      OAuth.OauthRedirectUri -> optional(text.verifying(uri)),
-      OAuth.OauthScope -> optional(text),
-      OAuth.OauthState -> optional(text)
-    )(OAuthorizeRequest.apply)(OAuthorizeRequest.unapply)
-  )
+  val responseTypeCodeValidation:AuthzValidation = (authzRequest, client) => implicit ec => { Future.successful {
+    Some(authzRequest.responseType == OAuth.ResponseType.Code).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnsupportedResponseType)))
+  }}
 
-  def errorToQuery(f:Form[_]):Map[String, Seq[String]] = Map(
+  val scopeValidation:AuthzValidation = (authzRequest, client) => implicit ec => {
+    authzRequest.scope.fold[Future[Either[Boolean, Map[String, Seq[String]]]]](Future.successful(Left(true))){ scope =>
+      scopeRepository.find(scope : _*).map{ scopes =>
+        val errors = scopes.filterNot(_._2.isDefined)
+        Some(errors.isEmpty).filter(_ == true).toLeft(Map(
+          OAuth.OauthError -> Seq(OAuth.ErrorCode.InvalidScope),
+          OAuth.OauthErrorDescription -> Seq(Messages(OAuth.ErrorInvalidScope, errors.map(e => e._1).mkString(" ")))
+        ))
+      }
+    }
+  }
+
+  val clientAuthorizedValidation:AuthzValidation = (authzRequest, client) => implicit ec => {Future.successful {
+    Some(client.authorized).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnauthorizedClient)))
+  }}
+
+  val authzValidator = Seq(responseTypeCodeValidation, scopeValidation, clientAuthorizedValidation)
+
+
+  def errorToQuery(f:Form[_]):Map[String, Seq[String]] = errorQuery(Map(
     OAuth.OauthError -> Seq(OAuth.ErrorCode.InvalidRequest),
     OAuth.OauthErrorDescription -> Seq(f.errorsAsJson.toString())
-  ) ++ f(OAuth.OauthState).value.map(v => Map(OAuth.OauthState -> Seq(v))).getOrElse(Map())
+  ), f(OAuth.OauthState).value)
+
+  def errorQuery(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
+     state.map(s => query + (OAuth.OauthState -> Seq(s))).getOrElse(query)
 
   def register(info:I)(implicit ec:ExecutionContext): Future[T] = {
-    factory.apply(info).flatMap(repository.save)
+    clientFactory.apply(info).flatMap(clientRepository.save)
   }
 
   def deRegister(client:T)(implicit ec:ExecutionContext): Future[Unit] = {
-    repository.delete(client)
+    clientRepository.delete(client)
   }
 
   def authorize(implicit ec:ExecutionContext) = Action.async { implicit request =>
-    authorizeRequest.bindFromRequest.fold(f => {
+    AuthzRequest.authorizeRequestForm.bindFromRequest.fold(f => {
       f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
         .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
         .getOrElse {
           val id = f(OAuth.OauthClientId).value.get
-          repository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
+          clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
             client.redirectUri.orElse(f(OAuth.OauthRedirectUri).value).fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
               Redirect(url, errorToQuery(f), FOUND)
             }
           })
         }
     }, oauthzRequest => {
-      repository.find(oauthzRequest.clientId).map { _.fold(NotFound(Messages(OAuth.ErrorClientNotFound, oauthzRequest.clientId))){ client =>
+      clientRepository.find(oauthzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, oauthzRequest.clientId)))){ client =>
 
         val url = client.redirectUri.orElse(oauthzRequest.redirectUri).get
 
-        if(oauthzRequest.responseType != OAuth.ResponseType.Code)
-          Redirect(url, Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnsupportedResponseType)), FOUND)
-        else {
-          if(!client.authorized)
-            Redirect(url, Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnauthorizedClient)), FOUND)
-          else {
-            Ok
-          }
-        }
+        Future.find(authzValidator.map(_(oauthzRequest, client)(ec)))(_.isRight).map(_ match {
+          case Some(e) => Redirect(url, errorQuery(e.right.get, oauthzRequest.state), FOUND)
+          case _ => Ok
+        })
+
       }}
     })
   }
 
 }
 
-object AuthzEndpointController extends AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient](new UUIDOauthClientFactory(), new InMemoryOauthClientRepository[BasicOauthClient]())
+object AuthzEndpointController extends AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope](
+  new UUIDOauthClientFactory(),
+  new InMemoryOauthClientRepository[BasicOauthClient](),
+  new InMemoryOauthScopeRepository[BasicOauthScope]()
+)
 
 class UUIDOauthClientFactory extends OauthClientFactory[BasicOauthClientInfo, BasicOauthClient] {
   def apply(info:BasicOauthClientInfo)(implicit ec: ExecutionContext): Future[BasicOauthClient] = Future.successful(BasicOauthClient(UUID.randomUUID().toString, UUID.randomUUID().toString, info))
@@ -92,6 +114,23 @@ class InMemoryOauthClientRepository[T <: OauthClient](var clients:Map[String, T]
 
   def delete(client: T)(implicit ec: ExecutionContext): Future[Unit] = Future.successful {
     clients -= client.id
-    clients
+  }
+}
+
+class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map[String, T](), val defaultScopes:Option[Seq[T]] = None) extends OauthScopeRepository[T] {
+
+  def defaults(implicit ec: ExecutionContext): Future[Option[Seq[T]]] = Future.successful(defaultScopes)
+
+  def find(id: String)(implicit ec: ExecutionContext): Future[Option[T]] = Future.successful(scopes.get(id))
+
+  def find(id: String*)(implicit ec: ExecutionContext): Future[Seq[(String,Option[T])]] = Future.successful(id.map(i => i -> scopes.get(i)))
+
+  def save(scope: T)(implicit ec: ExecutionContext): Future[T] = Future.successful {
+    scopes += (scope.id -> scope)
+    scope
+  }
+
+  def delete(scope: T)(implicit ec: ExecutionContext): Future[Unit] = Future.successful {
+    scopes -= scope.id
   }
 }

@@ -79,12 +79,14 @@ object OAuth {
   val ErrorClientNotFound = "error.client.notfound"
   val ErrorRedirectURIMissing = "error.redirectUri.missing"
   val ErrorRedirectURIInvalid = "error.redirectUri.invalid"
+  val ErrorInvalidScope = "error.invalid.scope"
 
   object ErrorCode {
     val InvalidRequest = "invalid_request"
     val UnauthorizedClient = "unauthorized_client"
     val AccessDenied = "access_denied"
     val UnsupportedResponseType = "unsupported_response_type"
+    val InvalidScope = "invalid_scope"
   }
 
 }

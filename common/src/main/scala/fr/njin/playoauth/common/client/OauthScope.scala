@@ -12,10 +12,14 @@ trait OauthScope {
   def description: Option[String]
 }
 
-class BasicOauthScope(val id: String, val name: Option[String], val description: Option[String]) extends OauthScope
+class BasicOauthScope(val id: String, val name: Option[String] = None, val description: Option[String] = None) extends OauthScope
 
 trait OauthScopeRepository[T <: OauthScope] {
+  def defaults(implicit ec:ExecutionContext):Future[Option[Seq[T]]]
+
   def find(id:String)(implicit ec:ExecutionContext):Future[Option[T]]
-  def save(client:T)(implicit ec:ExecutionContext):Future[T]
-  def delete(client:T)(implicit ec:ExecutionContext):Future[Unit]
+  def find(id:String*)(implicit ec:ExecutionContext):Future[Seq[(String,Option[T])]]
+
+  def save(scope:T)(implicit ec:ExecutionContext):Future[T]
+  def delete(scope:T)(implicit ec:ExecutionContext):Future[Unit]
 }
