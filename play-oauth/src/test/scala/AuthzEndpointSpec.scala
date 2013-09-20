@@ -5,7 +5,7 @@ import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.{Results, AnyContentAsFormUrlEncoded}
+import play.api.mvc.{Action, Results, AnyContentAsFormUrlEncoded}
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{Future, ExecutionContext, Await}
@@ -26,16 +26,50 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     import ExecutionContext.Implicits.global
 
     "Register a client" in new AuthzEndpoint {
-      val client = Await.result(endpoint.register(new BasicOauthClientInfo()), timeout)
+      val client = Await.result(endpoint.register(Seq(OAuth.ResponseType.Code), new BasicOauthClientInfo()), timeout)
       (client.id must not).beNull
       (client.secret must not).beNull
       Await.result(repository.find(client.id), 1 millis) must be equalTo Some(client)
     }
 
     "De register a client" in new AuthzEndpoint {
-      val client = Await.result(factory.apply(new BasicOauthClientInfo()).flatMap(repository.save), timeout)
+      val client = Await.result(factory.apply(Seq(OAuth.ResponseType.Code), new BasicOauthClientInfo()).flatMap(repository.save), timeout)
       Await.result(endpoint.deRegister(client), 1 millis)
       Await.result(repository.find(client.id), 1 millis) must beNone
+    }
+
+    "Issues an authorization code and delivers it to the client" in new AuthzEndPointWithClients {
+      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> ClientWithURI,
+        OAuth.OauthResponseType -> OAuth.ResponseType.Code,
+        OAuth.OauthState -> authorizationState
+      ))
+      status(r) must equalTo(FOUND)
+      val redirection = redirectLocation(r)
+      redirection must not beNone
+      val parsed = parse(redirection.get)
+      url(parsed) must equalTo(RedirectURI)
+      val query = parsed.query
+      query.param(OAuth.OauthError) must beNone
+      query.param(OAuth.OauthCode) must beSome(authorizationCode)
+      query.param(OAuth.OauthState) must beSome(authorizationState)
+    }
+
+    "Refuse an authorization code for the client" in new AuthzEndPointWithClients {
+      val r = authDenied.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> ClientWithURI,
+        OAuth.OauthResponseType -> OAuth.ResponseType.Code,
+        OAuth.OauthState -> authorizationState
+      ))
+      status(r) must equalTo(FOUND)
+      val redirection = redirectLocation(r)
+      redirection must not beNone
+      val parsed = parse(redirection.get)
+      url(parsed) must equalTo(RedirectURI)
+      val query = parsed.query
+      query.param(OAuth.OauthError) must beSome(OAuth.ErrorCode.AccessDenied)
+      query.param(OAuth.OauthCode) must beNone
+      query.param(OAuth.OauthState) must beSome(authorizationState)
     }
   }
 
@@ -122,7 +156,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     Seq(
       "The client is not authorized to request an authorization code using this method." -> Seq(
         FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> UnauthorizedClient,
+          OAuth.OauthClientId -> ImplicitGrantClientWithURI,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
       )
@@ -130,13 +164,10 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The resource owner or authorization server denied the request." -> Seq(
-        //TODO
-        /*
         FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI,
+          OAuth.OauthClientId -> UnauthorizedClient,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
-        */
       )
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.AccessDenied, test._2))
 
@@ -177,23 +208,31 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 }
 
 object Constants {
+  val authorizationCode = "a_code"
+  val authorizationState = "a_state"
+
   val RedirectURI = "http://localhost:9000/"
   val InvalidURI = "localhost:9000"
-  val ClientWithoutURI = "1"
-  val ClientWithURI = "2"
-  val ClientWithInvalidURI = "3"
-  val UnauthorizedClient = "4"
+  val ClientWithoutURI = "4.1.1"
+  val ClientWithURI = "4.1.2"
+  val ClientWithInvalidURI = "4.1.3"
+  val UnauthorizedClient = "4.1.4"
+
+  val ImplicitGrantClientWithURI = "4.2.1"
 }
 
 
 trait AuthzEndpoint extends Scope {
+  import Constants._
+
   val timeout = 1 seconds
   lazy val factory = new UUIDOauthClientFactory()
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
   lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
   lazy val endpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope](factory, repository, scopeRepository)
 
-  lazy val authOk = endpoint.authorize((authzRequest, oauthClient) => request => {Future.successful(Results.Ok)})
+  def authOk(implicit ec:ExecutionContext) = endpoint.authorize(endpoint.authzOk(authorizationCode))(ec)
+  def authDenied(implicit ec:ExecutionContext) = endpoint.authorize(endpoint.authzDeny)(ec)
 }
 
 trait AuthzEndPointWithClients extends AuthzEndpoint {
@@ -201,10 +240,11 @@ trait AuthzEndPointWithClients extends AuthzEndpoint {
   import Constants._
 
   override lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient](Map(
-    ClientWithoutURI -> BasicOauthClient(ClientWithoutURI, ClientWithoutURI),
-    ClientWithURI -> BasicOauthClient(ClientWithURI, ClientWithURI, new BasicOauthClientInfo(Some(RedirectURI))),
-    ClientWithInvalidURI -> BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, new BasicOauthClientInfo(Some(InvalidURI))),
-    UnauthorizedClient -> BasicOauthClient(UnauthorizedClient, UnauthorizedClient, new BasicOauthClientInfo(Some(RedirectURI), authorized = false))
+    ClientWithoutURI -> BasicOauthClient(ClientWithoutURI, ClientWithoutURI, Seq(OAuth.ResponseType.Code)),
+    ClientWithURI -> BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code), new BasicOauthClientInfo(Some(RedirectURI))),
+    ClientWithInvalidURI -> BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, Seq(), new BasicOauthClientInfo(Some(InvalidURI))),
+    UnauthorizedClient -> BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(), new BasicOauthClientInfo(Some(RedirectURI), authorized = false)),
+    ImplicitGrantClientWithURI -> BasicOauthClient(ImplicitGrantClientWithURI, ImplicitGrantClientWithURI, Seq(OAuth.ResponseType.Token), new BasicOauthClientInfo(Some(RedirectURI)))
   ))
   override lazy val scopeRepository: InMemoryOauthScopeRepository[BasicOauthScope] = new InMemoryOauthScopeRepository[BasicOauthScope](Map(
     "scope1" -> new BasicOauthScope("scope1"),

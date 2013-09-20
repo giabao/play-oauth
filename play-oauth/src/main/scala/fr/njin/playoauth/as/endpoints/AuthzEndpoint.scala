@@ -2,19 +2,18 @@ package fr.njin.playoauth.as.endpoints
 
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
-import play.api.data.Forms._
 import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
 import play.api.i18n.Messages
 import fr.njin.playoauth.common.client._
 import java.util.UUID
 import fr.njin.playoauth.common
-import Constraints._
 import scala.util.Either
 import scala.Predef._
 import scala.Some
 import play.api.mvc.SimpleResult
-import play.api.mvc.AnyContentAsFormUrlEncoded
+import Results._
+import play.api.http.Status._
 
 /**
  * User: bathily
@@ -24,13 +23,12 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope](
   clientFactory: OauthClientFactory[I , T],
   clientRepository: OauthClientRepository[T],
   scopeRepository: OauthScopeRepository[SC]
-) extends Controller with common.Logger {
-
+) extends common.Logger {
 
   type AuthzValidation =  (AuthzRequest, OauthClient) => ExecutionContext => Future[Either[Boolean, Map[String, Seq[String]]]]
 
   val responseTypeCodeValidation:AuthzValidation = (authzRequest, client) => implicit ec => { Future.successful {
-    Some(authzRequest.responseType == OAuth.ResponseType.Code).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnsupportedResponseType)))
+    Some(OAuth.ResponseType.All.contains(authzRequest.responseType)).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnsupportedResponseType)))
   }}
 
   val scopeValidation:AuthzValidation = (authzRequest, client) => implicit ec => {
@@ -46,65 +44,81 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope](
   }
 
   val clientAuthorizedValidation:AuthzValidation = (authzRequest, client) => implicit ec => {Future.successful {
-    Some(client.authorized).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.UnauthorizedClient)))
+    Some(client.authorized).filter(_ == true).toLeft(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.AccessDenied)))
   }}
 
-  val authzValidator = Seq(responseTypeCodeValidation, scopeValidation, clientAuthorizedValidation)
+  val clientResponseTypeValidation:AuthzValidation = (authzRequest, client) => implicit ec => { Future.successful {
+    Some(client.allowedResponseType.contains(authzRequest.responseType)).filter(_ == true).toLeft(Map(
+      OAuth.OauthError -> Seq(OAuth.ErrorCode.UnauthorizedClient),
+      OAuth.OauthErrorDescription -> Seq(Messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType))
+    ))
+  }}
 
 
-  def errorToQuery(f:Form[_]):Map[String, Seq[String]] = errorQuery(Map(
+  val authzValidator = Seq(responseTypeCodeValidation, scopeValidation, clientAuthorizedValidation, clientResponseTypeValidation)
+
+
+  def errorToQuery(f:Form[_]):Map[String, Seq[String]] = queryWithState(Map(
     OAuth.OauthError -> Seq(OAuth.ErrorCode.InvalidRequest),
     OAuth.OauthErrorDescription -> Seq(f.errorsAsJson.toString())
   ), f(OAuth.OauthState).value)
 
-  def errorQuery(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
+  def queryWithState(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
      state.map(s => query + (OAuth.OauthState -> Seq(s))).getOrElse(query)
 
-  def register(info:I)(implicit ec:ExecutionContext): Future[T] = {
-    clientFactory.apply(info).flatMap(clientRepository.save)
+  def register(allowedResponseType: Seq[String], info:I)(implicit ec:ExecutionContext): Future[T] = {
+    clientFactory.apply(allowedResponseType, info).flatMap(clientRepository.save)
   }
 
   def deRegister(client:T)(implicit ec:ExecutionContext): Future[Unit] = {
     clientRepository.delete(client)
   }
 
-  def authorize(f:(AuthzRequest, OauthClient) => Request[Map[String, Seq[String]]] => Future[SimpleResult])(implicit ec:ExecutionContext) = Action.async(BodyParsers.parse.urlFormEncoded) { implicit request =>
-
-    AuthzRequest.authorizeRequestForm.bindFromRequest.fold(f => {
-      f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
-        .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
-        .getOrElse {
-          val id = f(OAuth.OauthClientId).value.get
-          clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
-            client.redirectUri.orElse(f(OAuth.OauthRedirectUri).value).fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
-              Redirect(url, errorToQuery(f), FOUND)
-            }
-          })
+  def onFormError(f:Form[AuthzRequest])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
+    f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
+      .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
+      .getOrElse {
+      val id = f(OAuth.OauthClientId).value.get
+      clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
+        client.redirectUri.orElse(f(OAuth.OauthRedirectUri).value).fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
+          Redirect(url, errorToQuery(f), FOUND)
         }
-    }, oauthzRequest => {
-      clientRepository.find(oauthzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, oauthzRequest.clientId)))){ client =>
-
-        val url = client.redirectUri.orElse(oauthzRequest.redirectUri).get
-
-        Future.find(authzValidator.map(_(oauthzRequest, client)(ec)))(_.isRight).flatMap(_ match {
-          case Some(e) => Future.successful(Redirect(url, errorQuery(e.right.get, oauthzRequest.state), FOUND))
-          case _ => f(oauthzRequest, client)(request)
-        })
-
-      }}
-    })
+      })
+    }
   }
+
+  def onAuthzRequest(authzRequest: AuthzRequest)(f:(AuthzRequest, OauthClient) => Request[AnyContent] => Future[SimpleResult])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
+    clientRepository.find(authzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
+      val url = client.redirectUri.orElse(authzRequest.redirectUri).get
+      Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isRight).flatMap(_ match {
+        case Some(e) => Future.successful(Redirect(url, queryWithState(e.right.get, authzRequest.state), FOUND))
+        case _ => f(authzRequest, client)(request)
+      })
+    }}
+  }
+
+  def authorize(f:(AuthzRequest, OauthClient) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext) =
+    Action.async { implicit request =>
+      AuthzRequest.authorizeRequestForm.bindFromRequest.fold(onFormError, onAuthzRequest(_)(f))
+    }
+
+  def authzOk(code:String): (AuthzRequest, OauthClient) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+    val url = oauthClient.redirectUri.orElse(authzRequest.redirectUri).get
+    Future.successful(Redirect(url, queryWithState(Map(OAuth.OauthCode -> Seq(code)), authzRequest.state), FOUND))
+  }
+
+  def authzDeny: (AuthzRequest, OauthClient) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+    val url = oauthClient.redirectUri.orElse(authzRequest.redirectUri).get
+    Future.successful(Redirect(url, queryWithState(Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.AccessDenied)), authzRequest.state), FOUND))
+  }
+
+
 
 }
 
-object AuthzEndpointController extends AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope](
-  new UUIDOauthClientFactory(),
-  new InMemoryOauthClientRepository[BasicOauthClient](),
-  new InMemoryOauthScopeRepository[BasicOauthScope]()
-)
-
 class UUIDOauthClientFactory extends OauthClientFactory[BasicOauthClientInfo, BasicOauthClient] {
-  def apply(info:BasicOauthClientInfo)(implicit ec: ExecutionContext): Future[BasicOauthClient] = Future.successful(BasicOauthClient(UUID.randomUUID().toString, UUID.randomUUID().toString, info))
+  def apply(allowedResponseType: Seq[String], info:BasicOauthClientInfo)(implicit ec: ExecutionContext): Future[BasicOauthClient] =
+    Future.successful(BasicOauthClient(UUID.randomUUID().toString, UUID.randomUUID().toString, allowedResponseType, info))
 }
 
 class InMemoryOauthClientRepository[T <: OauthClient](var clients:Map[String, T] = Map[String, T]()) extends OauthClientRepository[T] {

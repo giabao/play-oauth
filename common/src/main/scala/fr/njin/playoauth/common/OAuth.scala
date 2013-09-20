@@ -10,31 +10,9 @@ object OAuth {
 
   object ResponseType {
     val Code = "code"
+    val Token = "token"
+    val All = Seq(Code, Token)
   }
-
-  /*
-  object HttpMethod {
-    val POST = "POST"
-    val GET = "GET"
-    val DELETE = "DELETE"
-    val PUT = "PUT"
-  }
-
-  object HeaderType {
-    val CONTENT_TYPE = "Content-Type"
-    val WWW_AUTHENTICATE = "WWW-Authenticate"
-    val AUTHORIZATION = "Authorization"
-  }
-
-  object WWWAuthHeader {
-    val REALM = "realm"
-  }
-
-  object ContentType {
-    val URL_ENCODED = "application/x-www-form-urlencoded"
-    val JSON = "application/json"
-  }
-  */
 
   val OauthResponseType = "response_type"
   val OauthClientId = "client_id"
@@ -48,6 +26,7 @@ object OAuth {
   */
   val OauthScope = "scope"
   val OauthState = "state"
+  val OauthCode = "code"
   val OauthError = "error"
   val OauthErrorDescription = "error_description"
   /*
@@ -80,6 +59,7 @@ object OAuth {
   val ErrorRedirectURIMissing = "error.redirectUri.missing"
   val ErrorRedirectURIInvalid = "error.redirectUri.invalid"
   val ErrorInvalidScope = "error.invalid.scope"
+  val ErrorUnauthorizedResponseType = "error.unauthorized.response_type"
 
   object ErrorCode {
     val InvalidRequest = "invalid_request"
