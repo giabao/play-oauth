@@ -16,7 +16,7 @@ object Constraints {
 
   def uri: Constraint[String] = Constraint[String]("constraint.uri"){ uri =>
     val invalid = Invalid(ValidationError("error.uri", uri))
-    if(new UrlValidator(UrlValidator.ALLOW_ALL_SCHEMES).isValid(uri)) Valid else invalid
+    if(new UrlValidator(UrlValidator.ALLOW_ALL_SCHEMES + UrlValidator.ALLOW_LOCAL_URLS).isValid(uri)) Valid else invalid
   }
 
 }

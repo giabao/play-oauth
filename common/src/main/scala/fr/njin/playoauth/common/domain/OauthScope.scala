@@ -1,4 +1,4 @@
-package fr.njin.playoauth.common.client
+package fr.njin.playoauth.common.domain
 
 import scala.concurrent.{Future, ExecutionContext}
 
@@ -12,7 +12,9 @@ trait OauthScope {
   def description: Option[String]
 }
 
-class BasicOauthScope(val id: String, val name: Option[String] = None, val description: Option[String] = None) extends OauthScope
+class BasicOauthScope(val id: String,
+                      val name: Option[String] = None,
+                      val description: Option[String] = None) extends OauthScope
 
 trait OauthScopeRepository[T <: OauthScope] {
   def defaults(implicit ec:ExecutionContext):Future[Option[Seq[T]]]

@@ -1,5 +1,5 @@
 package fr.njin.playoauth.common
-import types._
+import scala.concurrent.duration._
 
 /**
  * User: bathily
@@ -8,16 +8,27 @@ import types._
 object OAuth {
 
 
+  val MaximumLifetime = 10.minutes
+
   object ResponseType {
     val Code = "code"
     val Token = "token"
     val All = Seq(Code, Token)
   }
 
+  object GrantType {
+    val AuthorizationCode = "authorization_code"
+    val Password = "password"
+    val ClientCredentials = "client_credentials"
+    val All = Seq(AuthorizationCode, Password, ClientCredentials)
+  }
+
   val OauthResponseType = "response_type"
   val OauthClientId = "client_id"
   val OauthClientSecret = "client_secret"
   val OauthRedirectUri = "redirect_uri"
+  val OauthGrantType = "grant_type"
+
   /*
   val OAUTH_USERNAME = "username"
   val OAUTH_PASSWORD = "password"
@@ -29,8 +40,9 @@ object OAuth {
   val OauthCode = "code"
   val OauthError = "error"
   val OauthErrorDescription = "error_description"
+  val OauthErrorUri = "error_uri"
   /*
-  val OAUTH_GRANT_TYPE = "grant_type"
+
 
   val OAUTH_HEADER_NAME = "Bearer"
   */
@@ -60,12 +72,17 @@ object OAuth {
   val ErrorRedirectURIInvalid = "error.redirectUri.invalid"
   val ErrorInvalidScope = "error.invalid.scope"
   val ErrorUnauthorizedResponseType = "error.unauthorized.response_type"
+  val ErrorUnauthorizedGrantType = "error.unauthorized.grant_type"
+  val ErrorUnknownAuthorizationCode = "error.unknown.authorization_code"
 
   object ErrorCode {
     val InvalidRequest = "invalid_request"
+    val InvalidClient = "invalid_client"
+    val InvalidGrant = "invalid_grant"
     val UnauthorizedClient = "unauthorized_client"
     val AccessDenied = "access_denied"
     val UnsupportedResponseType = "unsupported_response_type"
+    val UnsupportedGrantType = "unsupported_grant_type"
     val InvalidScope = "invalid_scope"
   }
 

@@ -5,14 +5,15 @@ import play.api.data.{FormError, Form}
 import fr.njin.playoauth.common.OAuth
 import Constraints._
 import play.api.data.format.Formatter
+import fr.njin.playoauth.common.request.{TokenRequest, AuthzRequest}
 
 /**
  * User: bathily
  * Date: 17/09/13
  */
-case class AuthzRequest(responseType: String, clientId: String, redirectUri: Option[String], scope: Option[Seq[String]], state: Option[String])
 
-object AuthzRequest {
+
+object Requests {
   val authorizeRequestForm = Form (
     mapping(
       OAuth.OauthResponseType -> nonEmptyText,
@@ -26,4 +27,13 @@ object AuthzRequest {
       OAuth.OauthState -> optional(text)
     )(AuthzRequest.apply)(AuthzRequest.unapply)
   )
+
+  val tokenRequestForm = Form {
+    mapping(
+      OAuth.OauthGrantType -> nonEmptyText,
+      OAuth.OauthCode -> nonEmptyText,
+      OAuth.OauthClientId -> nonEmptyText,
+      OAuth.OauthRedirectUri -> optional(text.verifying(uri))
+    )(TokenRequest.apply)(TokenRequest.unapply)
+  }
 }

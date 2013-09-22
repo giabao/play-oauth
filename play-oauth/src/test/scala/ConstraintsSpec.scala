@@ -14,15 +14,15 @@ class ConstraintsSpec extends Specification {
 
     Seq("http://www.google.com",
       "https://www.google.com",
-      "file:///dir/file"
+      "file:///dir/file",
+      "http://localhost:9000/"
     ).map(valid)
 
     Seq("www.google.com",
       "/search",
       "localhost",
       "localhost:9000",
-      "file:/dir/file",
-      "file://localhost/dir/file"
+      "file:/dir/file"
     ).map(invalid)
   }
 
