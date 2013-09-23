@@ -1,5 +1,6 @@
 import sbt._
 import sbt.Keys._
+import sbt.Tests.Setup
 
 object BuildSettings {
   val projectName = "play-oauth"
@@ -80,6 +81,11 @@ object PlayOAuthBuild extends Build {
       libraryDependencies ++= commonDependencies ++ Seq(
         "org.slf4j" % "slf4j-api" % "1.7.5",
         "com.typesafe.play" %% "play-json" % "2.2.0"
+      ),
+      testOptions += Setup( cl =>
+        cl.loadClass("org.slf4j.LoggerFactory").
+          getMethod("getLogger",cl.loadClass("java.lang.String")).
+          invoke(null,"ROOT")
       )
     )
   )

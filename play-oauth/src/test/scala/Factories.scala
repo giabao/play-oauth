@@ -10,3 +10,7 @@ class UUIDOauthClientFactory extends OauthClientFactory[BasicOauthClientInfo, Ba
 class UUIDOauthCodeFactory[RO <: OauthResourceOwner[C, P], C <: OauthClient, P <: OauthPermission[C]] extends OauthCodeFactory[BasicOauthCode[RO, P, C], RO, P, C] {
   def apply(owner: RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]])(implicit ec:ExecutionContext): Future[BasicOauthCode[RO, P, C]] = Future.successful(new BasicOauthCode(UUID.randomUUID().toString, owner, client, new Date().getTime, redirectUri = redirectUri, scopes = scopes))
 }
+
+class UUIDOauthTokenFactory[RO <: OauthResourceOwner[C, P], C <: OauthClient, P <: OauthPermission[C]] extends OauthTokenFactory[BasicOauthToken, BasicOauthCode[RO, P, C], RO, P, C] {
+  def apply(code: BasicOauthCode[RO, P, C], redirectUri: Option[String])(implicit ec: ExecutionContext): Future[BasicOauthToken] = Future.successful(new BasicOauthToken(UUID.randomUUID().toString, "example"))
+}

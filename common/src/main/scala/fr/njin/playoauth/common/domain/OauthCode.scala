@@ -9,6 +9,7 @@ trait OauthCode[RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C <: Oa
   def client:C
   def issueAt: Long
   def expireIn: Long
+  def revokedAt: Option[Long]
   def redirectUri: Option[String]
   def scopes: Option[Seq[String]]
 }
@@ -29,6 +30,7 @@ class BasicOauthCode[RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C 
                      val owner:RO,
                      val client: C,
                      val issueAt: Long,
-                     val expireIn: Long = OAuth.MaximumLifetime.length,
+                     val expireIn: Long = OAuth.MaximumLifetime.toMillis,
+                     val revokedAt: Option[Long] = None,
                      val redirectUri: Option[String] = None,
                      val scopes: Option[Seq[String]] = None) extends OauthCode[RO, P, C]

@@ -2,6 +2,7 @@ import fr.njin.playoauth.common.domain.BasicOauthClientInfo
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
+import play.api.libs.json.Json
 import play.api.mvc.AnyContentAsFormUrlEncoded
 import play.api.test._
 import play.api.test.Helpers._
@@ -18,59 +19,38 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
 
   import Constants._
 
-  /*
   "TokenEndPoint" should {
 
     import ExecutionContext.Implicits.global
 
-    "Register a client" in new Endpoint {
-      val client = Await.result(endpoint.register(Seq(OAuth.ResponseType.Code), new BasicOauthClientInfo()), timeout)
-      (client.id must not).beNull
-      (client.secret must not).beNull
-      Await.result(repository.find(client.id), 1 millis) must be equalTo Some(client)
-    }
 
-    "De register a client" in new Endpoint {
-      val client = Await.result(factory.apply(Seq(OAuth.ResponseType.Code), new BasicOauthClientInfo()).flatMap(repository.save), timeout)
-      Await.result(endpoint.deRegister(client), 1 millis)
-      Await.result(repository.find(client.id), 1 millis) must beNone
-    }
+    """issues an access token and optional refresh token, and constructs the response
+      by adding the following parameters
+      to the entity-body of the HTTP response with a 200 (OK) status code""" in new EndPointWithClients {
 
-    "Issues an authorization code and delivers it to the client" in new EndPointWithClients {
-      val r = authOk.apply(FakeRequest().withFormUrlEncodedBody(
-        OAuth.OauthClientId -> ClientWithURI,
-        OAuth.OauthResponseType -> OAuth.ResponseType.Code,
-        OAuth.OauthState -> authorizationState
-      ))
-      status(r) must equalTo(FOUND)
-      val redirection = redirectLocation(r)
-      redirection must not beNone
-      val parsed = parse(redirection.get)
-      url(parsed) must equalTo(RedirectURI)
-      val query = parsed.query
-      query.param(OAuth.OauthError) must beNone
-      query.param(OAuth.OauthCode) must beSome(authorizationCode)
-      query.param(OAuth.OauthState) must beSome(authorizationState)
-    }
+      Seq(
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> ClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+          OAuth.OauthCode -> AuthorizationCode
+        ),
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+          OAuth.OauthCode -> AnotherAuthorizationCode,
+          OAuth.OauthRedirectUri -> RedirectURI
+        )
+      ).map { request =>
+        val r = token.apply(request)
+        status(r) must equalTo(OK)
+        (contentAsJson(r) \ OAuth.OauthError).asOpt[String] must beNone
+        (contentAsJson(r) \ OAuth.OauthAccessToken).asOpt[String] must beSome[String]
+        (contentAsJson(r) \ OAuth.OauthTokenType).asOpt[String] must beSome[String]
+        Json.toJson(Await.result(tokenRepository.find((contentAsJson(r) \ OAuth.OauthAccessToken).as[String]), timeout)) must beEqualTo(contentAsJson(r))
+      }
 
-    "Refuse an authorization code for the client" in new EndPointWithClients {
-      val r = authDenied.apply(FakeRequest().withFormUrlEncodedBody(
-        OAuth.OauthClientId -> ClientWithURI,
-        OAuth.OauthResponseType -> OAuth.ResponseType.Code,
-        OAuth.OauthState -> authorizationState
-      ))
-      status(r) must equalTo(FOUND)
-      val redirection = redirectLocation(r)
-      redirection must not beNone
-      val parsed = parse(redirection.get)
-      url(parsed) must equalTo(RedirectURI)
-      val query = parsed.query
-      query.param(OAuth.OauthError) must beSome(OAuth.ErrorCode.AccessDenied)
-      query.param(OAuth.OauthCode) must beNone
-      query.param(OAuth.OauthState) must beSome(authorizationState)
     }
   }
-  */
 
 
   """The authorization server responds with an HTTP 400 (Bad Request)
@@ -83,24 +63,20 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
         FakeRequest(),
         FakeRequest().withFormUrlEncodedBody(
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
-          OAuth.OauthCode -> AuthorizationCode,
-          OAuth.OauthRedirectUri -> RedirectURI
-        ),
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithCode,
-          OAuth.OauthCode -> AuthorizationCode,
-          OAuth.OauthRedirectUri -> RedirectURI
-        ),
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithCode,
-          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
-          OAuth.OauthRedirectUri -> RedirectURI
-        ),
-        //TODO
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithCode,
-          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AuthorizationCode
+        ),
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> ClientWithCode,
+          OAuth.OauthCode -> AuthorizationCode
+        ),
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> ClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode
+        ),
+        FakeRequest().withFormUrlEncodedBody(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+          OAuth.OauthCode -> AnotherAuthorizationCode
         )
       ).map(request => {
         val r = token.apply(request)
@@ -124,8 +100,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> AuthorizationCode,
-        OAuth.OauthCode -> AuthorizationCode,
-        OAuth.OauthRedirectUri -> RedirectURI
+        OAuth.OauthCode -> AuthorizationCode
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidRequest)
@@ -145,135 +120,97 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       val r = token.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> "unknown_client",
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
-        OAuth.OauthCode -> AuthorizationCode,
-        OAuth.OauthRedirectUri -> RedirectURI
+        OAuth.OauthCode -> AuthorizationCode
       ))
       status(r) must equalTo(UNAUTHORIZED)
-      println(contentAsJson(r))
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidClient)
     }
 
-    """The provided authorization grant is invalid, expired, revoked,
-       does not match the redirection URI used in the authorization request,
-       or was issued to another client.""" in new EndPointWithClients {
+    "The provided authorization grant is invalid" in new EndPointWithClients {
       val r = token.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
-        OAuth.OauthCode -> "unknown_code",
-        OAuth.OauthRedirectUri -> RedirectURI
+        OAuth.OauthCode -> "unknown_code"
       ))
       status(r) must equalTo(BAD_REQUEST)
-      println(contentAsJson(r))
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorUnknownAuthorizationCode)
+    }
+
+    "The provided authorization grant is expired" in new EndPointWithClients {
+      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> ClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+        OAuth.OauthCode -> ExpiredAuthorizationCode
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorExpiredAuthorizationCode)
+    }
+
+    "The provided authorization grant is revoked" in new EndPointWithClients {
+      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> ClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+        OAuth.OauthCode -> RevokedAuthorizationCode
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorRevokedAuthorizationCode)
+    }
+
+    "The provided authorization grant does not match the redirection URI used in the authorization request" in new EndPointWithClients {
+      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> AnotherClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+        OAuth.OauthCode -> AnotherAuthorizationCode,
+        OAuth.OauthRedirectUri -> "http://dummy.com"
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorRedirectURINotMatch)
+    }
+
+    """The provided authorization grant was issued to another client.""" in new EndPointWithClients {
+      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> ClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
+        OAuth.OauthCode -> AnotherAuthorizationCode
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorClientNotMatch)
     }
 
     "The authenticated client is not authorized to use this authorization grant type." in new EndPointWithClients {
       val r = token.apply(FakeRequest().withFormUrlEncodedBody(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
-        OAuth.OauthCode -> AuthorizationCode,
-        OAuth.OauthRedirectUri -> RedirectURI
+        OAuth.OauthCode -> AuthorizationCode
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnauthorizedClient)
     }
 
     "The authorization grant type is not supported by the authorization server." in new EndPointWithClients {
-      failure("TODO")
+      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform).apply(FakeRequest().withFormUrlEncodedBody(
+        OAuth.OauthClientId -> AnotherClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
+        OAuth.OauthCode -> AnotherAuthorizationCode,
+        OAuth.OauthRedirectUri -> RedirectURI
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnsupportedGrantType)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorUnsupportedGrantType)
     }
 
+    /*
     "The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner." in new EndPointWithClients {
       failure("TODO")
     }
-
+    */
   }
 
-  /*
-  """ If the resource owner denies the access request or if the request
-  fails for reasons other than a missing or invalid redirection URI,
-  the authorization server informs the client by adding the following
-  parameters to the query component of the redirection URI using the
-  "application/x-www-form-urlencoded" format""" ^ {
-
-    import ExecutionContext.Implicits.global
-
-    Seq(
-      "The request is missing a required parameter" -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI
-        )
-      ),
-      "includes an invalid parameter value" -> Seq(
-        //TODO What's an invalid parameter value?
-        /*
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "unknown_code"
-        )
-        */
-      ),
-      "includes a parameter more than once" -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> OAuth.ResponseType.Code,
-          OAuth.OauthClientId -> ClientWithURI
-        )
-      )
-    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidRequest, test._2))
-
-    Seq(
-      "The client is not authorized to request an authorization code using this method." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ImplicitGrantClientWithURI,
-          OAuth.OauthResponseType -> OAuth.ResponseType.Code
-        )
-      )
-    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.UnauthorizedClient, test._2))
-
-    Seq(
-      "The resource owner or authorization server denied the request." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> UnauthorizedClient,
-          OAuth.OauthResponseType -> OAuth.ResponseType.Code
-        )
-      )
-    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.AccessDenied, test._2))
-
-    Seq(
-      "The authorization server does not support obtaining an authorization code using this method." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> "unknown_code"
-        )
-      )
-    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.UnsupportedResponseType, test._2))
-
-    Seq(
-      "The requested scope is invalid, unknown, or malformed." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
-          OAuth.OauthClientId -> ClientWithURI,
-          OAuth.OauthResponseType -> OAuth.ResponseType.Code,
-          OAuth.OauthScope -> "unknown_scope"
-        )
-      )
-    ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidScope, test._2))
-  }
-
-  def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsFormUrlEncoded]])(implicit ec:ExecutionContext) = {
-    name in new EndPointWithClients {
-      requests.map{ request =>
-        val r = authOk.apply(request)
-        status(r) must equalTo(FOUND)
-        val redirection = redirectLocation(r)
-        redirection must not beNone
-        val parsed = parse(redirection.get)
-        url(parsed) must equalTo(RedirectURI)
-        val query = parsed.query
-        query.param(OAuth.OauthError) must beSome(waitingCode)
-      }
-    }
-  }
-  */
 }
 
 

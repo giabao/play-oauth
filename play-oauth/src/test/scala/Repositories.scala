@@ -43,3 +43,14 @@ class InMemoryOauthCodeRepository[CO <: OauthCode[RO, P, C], RO <: OauthResource
   }
 
 }
+
+class InMemoryOauthTokenRepository[TO <: OauthToken](var tokens: Set[TO] = Set.empty[TO]) extends OauthTokenRepository[TO] {
+
+  def find(value: String)(implicit ec: ExecutionContext): Future[Option[TO]] = Future.successful(tokens.find(_.accessToken == value))
+
+  def save(token: TO)(implicit ec: ExecutionContext): Future[TO] = Future.successful {
+    tokens = tokens + token
+    token
+  }
+
+}

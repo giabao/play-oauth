@@ -41,6 +41,11 @@ object OAuth {
   val OauthError = "error"
   val OauthErrorDescription = "error_description"
   val OauthErrorUri = "error_uri"
+  val OauthAccessToken = "access_token"
+  val OauthTokenType = "token_type"
+  val OauthExpiresIn = "expires_in"
+  val OauthRefreshToken = "refresh_token"
+
   /*
 
 
@@ -49,11 +54,6 @@ object OAuth {
   /*
   //Authorization response params
   val OAUTH_CODE = "code"
-  val OAUTH_ACCESS_TOKEN = "access_token"
-  val OAUTH_EXPIRES_IN = "expires_in"
-  val OAUTH_REFRESH_TOKEN = "refresh_token"
-
-  val OAUTH_TOKEN_TYPE = "token_type"
 
   val OAUTH_TOKEN = "oauth_token"
 
@@ -73,7 +73,12 @@ object OAuth {
   val ErrorInvalidScope = "error.invalid.scope"
   val ErrorUnauthorizedResponseType = "error.unauthorized.response_type"
   val ErrorUnauthorizedGrantType = "error.unauthorized.grant_type"
+  val ErrorUnsupportedGrantType = "error.unsupported.grant_type"
   val ErrorUnknownAuthorizationCode = "error.unknown.authorization_code"
+  val ErrorExpiredAuthorizationCode = "error.expired.authorization_code"
+  val ErrorRevokedAuthorizationCode = "error.revoked.authorization_code"
+  val ErrorClientNotMatch = "error.client.not_match"
+  val ErrorRedirectURINotMatch = "error.redirectUri.not_match"
 
   object ErrorCode {
     val InvalidRequest = "invalid_request"

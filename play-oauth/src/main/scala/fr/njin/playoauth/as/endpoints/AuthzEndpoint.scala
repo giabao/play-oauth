@@ -29,27 +29,27 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   codeRepository: OauthCodeRepository[CO, RO, P, T]
 ) extends common.Logger {
 
-  type AuthzValidation =  (AuthzRequest, T) => ExecutionContext => Future[Either[Boolean, Map[String, Seq[String]]]]
+  type AuthzValidation =  (AuthzRequest, T) => ExecutionContext => Future[Option[Map[String, Seq[String]]]]
 
   val responseTypeCodeValidation:AuthzValidation = (authzRequest, client) => implicit ec => { Future.successful {
-    Some(OAuth.ResponseType.All.contains(authzRequest.responseType)).filter(_ == true).toLeft(UnsupportedResponseTypeError())
+    if(OAuth.ResponseType.All.contains(authzRequest.responseType)) None else Some(UnsupportedResponseTypeError())
   }}
 
   val scopeValidation:AuthzValidation = (authzRequest, client) => implicit ec => {
-    authzRequest.scope.fold[Future[Either[Boolean, Map[String, Seq[String]]]]](Future.successful(Left(true))){ scope =>
-      scopeRepository.find(scope : _*).map{ scopes =>
-        val errors = scopes.filterNot(_._2.isDefined)
-        Some(errors.isEmpty).filter(_ == true).toLeft(InvalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.map(e => e._1).mkString(" ")))))
-      }
-    }
+    authzRequest.scope.map[Future[Option[Map[String, Seq[String]]]]]{ scope =>
+        scopeRepository.find(scope : _*).map{ scopes =>
+          val errors = scopes.filterNot(_._2.isDefined)
+          if(errors.isEmpty) None else Some(InvalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.map(e => e._1).mkString(" ")))))
+        }
+    }.getOrElse(Future.successful(None))
   }
 
   val clientAuthorizedValidation:AuthzValidation = (authzRequest, client) => implicit ec => {Future.successful {
-    Some(client.authorized).filter(_ == true).toLeft(AccessDeniedError())
+    if(client.authorized) None else Some(AccessDeniedError())
   }}
 
   val clientResponseTypeValidation:AuthzValidation = (authzRequest, client) => implicit ec => { Future.successful {
-    Some(client.allowedResponseType.contains(authzRequest.responseType)).filter(_ == true).toLeft(UnauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType))))
+    if(client.allowedResponseType.contains(authzRequest.responseType)) None else Some(UnauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType))))
   }}
 
   val authzValidator = Seq(responseTypeCodeValidation, scopeValidation, clientAuthorizedValidation, clientResponseTypeValidation)
@@ -83,8 +83,8 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   def onAuthzRequest(authzRequest: AuthzRequest)(f:(AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
     clientRepository.find(authzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
       val url = client.redirectUri.orElse(authzRequest.redirectUri).get
-      Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isRight).flatMap(_ match {
-        case Some(e) => Future.successful(Redirect(url, queryWithState(e.right.get, authzRequest.state), FOUND))
+      Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap(_ match {
+        case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
         case _ => f(authzRequest, client)(request)
       })
     }}
