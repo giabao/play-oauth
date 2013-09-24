@@ -2,7 +2,7 @@ import fr.njin.playoauth.common.domain.BasicOauthClientInfo
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.AnyContentAsFormUrlEncoded
+import play.api.mvc.{AnyContentAsEmpty, AnyContentAsFormUrlEncoded}
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{ExecutionContext, Await}
@@ -36,14 +36,14 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "Issues an authorization code and delivers it to the client" in new EndPointWithClients {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = authz.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithURI,
         OAuth.OauthResponseType -> OAuth.ResponseType.Code,
         OAuth.OauthState -> AuthorizationState
       ))
       status(r) must equalTo(FOUND)
       val redirection = redirectLocation(r)
-      redirection must not beNone
+      (redirection must not).beNone
       val parsed = parse(redirection.get)
       url(parsed) must equalTo(RedirectURI)
       val query = parsed.query
@@ -53,20 +53,50 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "Refuse an authorization code for the client" in new EndPointWithClients {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = authz.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithURIUnauthorized,
         OAuth.OauthResponseType -> OAuth.ResponseType.Code,
         OAuth.OauthState -> AuthorizationState
       ))
       status(r) must equalTo(FOUND)
       val redirection = redirectLocation(r)
-      redirection must not beNone
+      (redirection must not).beNone
       val parsed = parse(redirection.get)
       url(parsed) must equalTo(RedirectURI)
       val query = parsed.query
       query.param(OAuth.OauthError) must beSome(OAuth.ErrorCode.AccessDenied)
       query.param(OAuth.OauthCode) must beNone
       query.param(OAuth.OauthState) must beSome(AuthorizationState)
+    }
+
+    "Issues an access token  and delivers it to the client" in new EndPointWithClients {
+      val r = authz.apply(OauthFakeRequest(
+        OAuth.OauthClientId -> ClientWithURI,
+        OAuth.OauthResponseType -> OAuth.ResponseType.Token,
+        OAuth.OauthState -> AuthorizationState
+      ))
+      status(r) must equalTo(FOUND)
+      val redirection = redirectLocation(r)
+      (redirection must not).beNone
+      val parsed = parse(redirection.get)
+      url(parsed) must equalTo(RedirectURI)
+
+      (parsed.fragment must not).beNone
+
+      val query = parsed.fragment.map {
+        _.split("&").map { s =>
+          val arr = s.split("=")
+          arr(0) -> arr(1)
+        }.toMap
+      }
+
+      def p(key: String): Option[String] = query.flatMap(_.get(key))
+
+      p(OAuth.OauthError) must beNone
+      p(OAuth.OauthAccessToken) must beSome[String]
+      p(OAuth.OauthTokenType) must beSome[String]
+      p(OAuth.OauthRefreshToken) must beNone
+      p(OAuth.OauthState) must beSome(AuthorizationState)
     }
   }
 
@@ -84,11 +114,11 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "if the client identifier is invalid" in new Endpoint {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> "1"))
+      val r = authz.apply(OauthFakeRequest(OAuth.OauthClientId -> "1"))
       status(r) must equalTo(NOT_FOUND)
       contentAsString(r) must equalTo(OAuth.ErrorClientNotFound)
 
-      val r2 = authz.apply(FakeRequest().withFormUrlEncodedBody(
+      val r2 = authz.apply(OauthFakeRequest(
         OAuth.OauthClientId -> "1",
         OAuth.OauthResponseType -> OAuth.ResponseType.Code
       ))
@@ -97,13 +127,13 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "due to a missing redirection URI" in new EndPointWithClients {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
+      val r = authz.apply(OauthFakeRequest(OAuth.OauthClientId -> ClientWithoutURI))
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorRedirectURIMissing)
     }
 
     "due to an invalid redirection URI" in new EndPointWithClients {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = authz.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithoutURI,
         OAuth.OauthRedirectUri -> InvalidURI
       ))
@@ -112,7 +142,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "due to an mismatching redirection URI" in new EndPointWithClients {
-      val r = authz.apply(FakeRequest().withFormUrlEncodedBody(OAuth.OauthClientId -> ClientWithoutURI))
+      val r = authz.apply(OauthFakeRequest(OAuth.OauthClientId -> ClientWithoutURI))
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorRedirectURIMissing)
     }
@@ -128,21 +158,21 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The request is missing a required parameter" -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithURI
         )
       ),
       "includes an invalid parameter value" -> Seq(
         //TODO What's an invalid parameter value?
         /*
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithURI,
           OAuth.OauthResponseType -> "unknown_code"
         )
         */
       ),
       "includes a parameter more than once" -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithURI,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code,
           OAuth.OauthClientId -> ClientWithURI
@@ -152,7 +182,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The client is not authorized to request an authorization code using this method." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ImplicitGrantClientWithURI,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
@@ -161,7 +191,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The resource owner or authorization server denied the request." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> UnauthorizedClient,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
@@ -170,7 +200,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The authorization server does not support obtaining an authorization code using this method." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithURI,
           OAuth.OauthResponseType -> "unknown_code"
         )
@@ -179,7 +209,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     Seq(
       "The requested scope is invalid, unknown, or malformed." -> Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithURI,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code,
           OAuth.OauthScope -> "unknown_scope"
@@ -188,13 +218,13 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidScope, test._2))
   }
 
-  def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsFormUrlEncoded]])(implicit ec:ExecutionContext) = {
+  def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsEmpty.type]])(implicit ec:ExecutionContext) = {
     name in new EndPointWithClients {
       requests.map{ request =>
         val r = authz.apply(request)
         status(r) must equalTo(FOUND)
         val redirection = redirectLocation(r)
-        redirection must not beNone
+        (redirection must not).beNone
         val parsed = parse(redirection.get)
         url(parsed) must equalTo(RedirectURI)
         val query = parsed.query

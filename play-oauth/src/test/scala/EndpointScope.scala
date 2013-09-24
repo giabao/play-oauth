@@ -18,7 +18,7 @@ trait Endpoint extends Scope {
 
   val timeout = 1.seconds
 
-  def user:Option[User] = None
+  lazy val user:Option[User] = None
 
   lazy val factory = new UUIDOauthClientFactory()
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
@@ -27,7 +27,7 @@ trait Endpoint extends Scope {
   lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]()
   lazy val tokenFactory = new UUIDOauthTokenFactory[User, BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]()
   lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken]()
-  lazy val authzEndpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient]](factory, repository, scopeRepository, codeFactory, codeRepository)
+  lazy val authzEndpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository)
   lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository)
   lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode))
 
@@ -43,17 +43,17 @@ trait EndPointWithClients extends Endpoint {
 
   import Constants._
 
-  val ownerAuthorizedClient = BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(RedirectURI)))
-  val ownerUnauthorizedClient = BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(RedirectURI)))
-  val clientWithCode = BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(RedirectURI)))
-  val anotherClientWithCode = BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, new BasicOauthClientInfo(Some(RedirectURI)))
+  val ownerAuthorizedClient = BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code, OAuth.ResponseType.Token), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(Seq(RedirectURI))))
+  val ownerUnauthorizedClient = BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(Seq(RedirectURI))))
+  val clientWithCode = BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(Seq(RedirectURI))))
+  val anotherClientWithCode = BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, new BasicOauthClientInfo(Some(Seq(RedirectURI))))
 
 
-  override def user: Option[User] = Some(User(
+  override lazy val user: Option[User] = Some(User(
     (Seq(
       new BasicOAuthPermission[BasicOauthClient](true, ownerAuthorizedClient, None, None),
       new BasicOAuthPermission[BasicOauthClient](false, ownerUnauthorizedClient, None, None),
-      new BasicOAuthPermission[BasicOauthClient](false, BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(RedirectURI))), None, None),
+      new BasicOAuthPermission[BasicOauthClient](false, BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), new BasicOauthClientInfo(Some(Seq(RedirectURI)))), None, None),
       new BasicOAuthPermission[BasicOauthClient](true, clientWithCode, None, None),
       new BasicOAuthPermission[BasicOauthClient](true, anotherClientWithCode, None, None)
     ) map (p => p.client -> p)).toMap
@@ -64,9 +64,9 @@ trait EndPointWithClients extends Endpoint {
       BasicOauthClient(ClientWithoutURI, ClientWithoutURI, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode)),
       ownerAuthorizedClient,
       ownerUnauthorizedClient,
-      BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, Seq(), Seq(), new BasicOauthClientInfo(Some(InvalidURI))),
-      BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(), Seq(), new BasicOauthClientInfo(Some(RedirectURI), authorized = false)),
-      BasicOauthClient(ImplicitGrantClientWithURI, ImplicitGrantClientWithURI, Seq(OAuth.ResponseType.Token), Seq(OAuth.GrantType.ClientCredentials), new BasicOauthClientInfo(Some(RedirectURI))),
+      BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, Seq(), Seq(), new BasicOauthClientInfo(Some(Seq(InvalidURI)))),
+      BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(), Seq(), new BasicOauthClientInfo(Some(Seq(RedirectURI)), authorized = false)),
+      BasicOauthClient(ImplicitGrantClientWithURI, ImplicitGrantClientWithURI, Seq(OAuth.ResponseType.Token), Seq(OAuth.GrantType.ClientCredentials), new BasicOauthClientInfo(Some(Seq(RedirectURI)))),
       clientWithCode,
       anotherClientWithCode
     ) map (c => c.id -> c)).toMap

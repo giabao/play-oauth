@@ -99,7 +99,12 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
 
   def token(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext) =
     Action.async { implicit request =>
-      tokenRequestForm.bindFromRequest.fold(onTokenFormError, onTokenRequest(_)(f))
+      val form = tokenRequestForm.bindFromRequest
+
+      Option(request.queryString.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
+        form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
+      }.getOrElse(form).fold(onTokenFormError, onTokenRequest(_)(f))
+
     }
 
   def perform(implicit ec:ExecutionContext, writes: Writes[TO]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {

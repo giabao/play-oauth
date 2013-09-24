@@ -29,12 +29,12 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       to the entity-body of the HTTP response with a 200 (OK) status code""" in new EndPointWithClients {
 
       Seq(
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithCode,
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AuthorizationCode
         ),
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> AnotherClientWithCode,
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AnotherAuthorizationCode,
@@ -61,19 +61,19 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     "The request is missing a required parameter" in new EndPointWithClients {
       Seq(
         FakeRequest(),
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AuthorizationCode
         ),
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithCode,
           OAuth.OauthCode -> AuthorizationCode
         ),
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> ClientWithCode,
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode
         ),
-        FakeRequest().withFormUrlEncodedBody(
+        OauthFakeRequest(
           OAuth.OauthClientId -> AnotherClientWithCode,
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AnotherAuthorizationCode
@@ -86,7 +86,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "includes an unsupported parameter value (other than grant type)" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> "unknown_grant_type",
         OAuth.OauthCode -> AuthorizationCode
@@ -96,7 +96,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "repeats a parameter" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> AuthorizationCode,
@@ -107,17 +107,17 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "includes multiple credentials" in new EndPointWithClients {
-      failure("TODO")
+      failure("TODO client authentication")
     }
 
     "utilizes more than one mechanism for authenticating the client" in new EndPointWithClients {
-      failure("TODO")
+      failure("TODO client authentication")
     }
 
     """Client authentication failed (e.g., unknown client, no
     client authentication included, or unsupported
     authentication method)""" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> "unknown_client",
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> AuthorizationCode
@@ -127,7 +127,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The provided authorization grant is invalid" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> "unknown_code"
@@ -138,7 +138,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The provided authorization grant is expired" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> ExpiredAuthorizationCode
@@ -149,7 +149,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The provided authorization grant is revoked" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> RevokedAuthorizationCode
@@ -160,7 +160,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The provided authorization grant does not match the redirection URI used in the authorization request" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> AnotherClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> AnotherAuthorizationCode,
@@ -172,7 +172,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     """The provided authorization grant was issued to another client.""" in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
         OAuth.OauthCode -> AnotherAuthorizationCode
@@ -183,7 +183,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The authenticated client is not authorized to use this authorization grant type." in new EndPointWithClients {
-      val r = token.apply(FakeRequest().withFormUrlEncodedBody(
+      val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
         OAuth.OauthCode -> AuthorizationCode
@@ -193,7 +193,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The authorization grant type is not supported by the authorization server." in new EndPointWithClients {
-      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform).apply(FakeRequest().withFormUrlEncodedBody(
+      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform).apply(OauthFakeRequest(
         OAuth.OauthClientId -> AnotherClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
         OAuth.OauthCode -> AnotherAuthorizationCode,
