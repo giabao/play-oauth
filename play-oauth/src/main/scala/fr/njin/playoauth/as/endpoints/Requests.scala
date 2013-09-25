@@ -5,7 +5,11 @@ import play.api.data.{FormError, Form}
 import fr.njin.playoauth.common.OAuth
 import Constraints._
 import play.api.data.format.Formatter
-import fr.njin.playoauth.common.request.{TokenRequest, AuthzRequest}
+import fr.njin.playoauth.common.request._
+import fr.njin.playoauth.common.request.PasswordTokenRequest
+import fr.njin.playoauth.common.request.AuthzRequest
+import play.api.data.FormError
+import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
 
 /**
  * User: bathily
@@ -14,26 +18,42 @@ import fr.njin.playoauth.common.request.{TokenRequest, AuthzRequest}
 
 
 object Requests {
+
+  val scopeFormatter: Formatter[Seq[String]] = new Formatter[Seq[String]] {
+    def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(" ")))
+    def bind(key: String, data: Map[String, String]): Either[Seq[FormError], Seq[String]] =
+      data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil))))(v => Right(v.split(" ").toSeq))
+  }
+
   val authorizeRequestForm = Form (
     mapping(
       OAuth.OauthResponseType -> nonEmptyText,
       OAuth.OauthClientId -> nonEmptyText,
       OAuth.OauthRedirectUri -> optional(text.verifying(uri)),
-      OAuth.OauthScope -> optional(of[Seq[String]](new Formatter[Seq[String]] {
-        def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(" ")))
-        def bind(key: String, data: Map[String, String]): Either[Seq[FormError], Seq[String]] =
-          data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil))))(v => Right(v.split(" ").toSeq))
-      })),
+      OAuth.OauthScope -> optional(of[Seq[String]](scopeFormatter)),
       OAuth.OauthState -> optional(text)
     )(AuthzRequest.apply)(AuthzRequest.unapply)
   )
 
-  val tokenRequestForm = Form {
+  val authorizationCodeTokenRequestForm = Form {
     mapping(
-      OAuth.OauthGrantType -> nonEmptyText,
       OAuth.OauthCode -> nonEmptyText,
       OAuth.OauthClientId -> nonEmptyText,
       OAuth.OauthRedirectUri -> optional(text.verifying(uri))
-    )(TokenRequest.apply)(TokenRequest.unapply)
+    )(AuthorizationCodeTokenRequest.apply)(AuthorizationCodeTokenRequest.unapply)
+  }
+
+  val passwordTokenRequestForm = Form {
+    mapping(
+      OAuth.OauthUsername -> nonEmptyText,
+      OAuth.OauthPassword -> nonEmptyText,
+      OAuth.OauthScope -> optional(of[Seq[String]](scopeFormatter))
+    )(PasswordTokenRequest.apply)(PasswordTokenRequest.unapply)
+  }
+
+  val clientCredentialsTokenRequestForm = Form {
+    mapping(
+      OAuth.OauthScope -> optional(of[Seq[String]](scopeFormatter))
+    )(ClientCredentialsTokenRequest.apply)(ClientCredentialsTokenRequest.unapply)
   }
 }

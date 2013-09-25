@@ -13,7 +13,7 @@ import play.api.mvc.SimpleResult
 import Results._
 import OauthError._
 import play.api.libs.json.{Writes, Json}
-import fr.njin.playoauth.common.request.TokenRequest
+import fr.njin.playoauth.common.request.{AuthorizationCodeTokenRequest, TokenRequest}
 import Requests._
 import java.util.Date
 
@@ -21,6 +21,11 @@ import java.util.Date
  * User: bathily
  * Date: 17/09/13
  */
+
+trait ClientAuthentication[T <: OauthClient] {
+  def authenticate(request: Request[AnyContent])(implicit ec: ExecutionContext): Future[Either[Option[T], OauthError]]
+}
+
 class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken](
   clientFactory: OauthClientFactory[I , T],
   clientRepository: OauthClientRepository[T],
@@ -32,15 +37,10 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   supportedGrantType: Seq[String] = OAuth.GrantType.All
 ) extends common.Logger {
 
+  this: ClientAuthentication[T] =>
+
   type TokenValidation =  (TokenRequest, T) => ExecutionContext => Future[Option[OauthError]]
   type CodeValidation =  (TokenRequest, T, CO) => ExecutionContext => Future[Option[OauthError]]
-
-  val grantTypeCodeValidation:TokenValidation = (tokenRequest, client) => implicit ec => {
-    Future.successful {
-      if(supportedGrantType.contains(tokenRequest.grantType)) None
-      else Some(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, tokenRequest.grantType))))
-    }
-  }
 
   val clientGrantTypeValidation:TokenValidation = (tokenRequest, client) => implicit ec => {
     Future.successful {
@@ -49,7 +49,7 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
     }
   }
 
-  val tokenValidator = Seq(grantTypeCodeValidation, clientGrantTypeValidation)
+  val tokenValidator = Seq(clientGrantTypeValidation)
 
   val codeClientValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
@@ -74,51 +74,90 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
 
   val codeRedirectUriValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
-      code.redirectUri == tokenRequest.redirectUri match {
-        case false if tokenRequest.redirectUri.isEmpty => Some(InvalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
-        case false => Some(InvalidGrantError(Some(Messages(OAuth.ErrorRedirectURINotMatch))))
+      tokenRequest match {
+        case AuthorizationCodeTokenRequest(_, _, uri) =>
+          code.redirectUri == uri match {
+            case false if uri.isEmpty => Some(InvalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
+            case false => Some(InvalidGrantError(Some(Messages(OAuth.ErrorRedirectURINotMatch))))
+            case _ => None
+          }
         case _ => None
       }
+
     }
   }
 
   val codeValidator = Seq(codeClientValidation, codeExpireValidation, codeRevokeValidation, codeRedirectUriValidation)
 
-  def onTokenFormError(f:Form[TokenRequest])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
-    Future.successful(BadRequest(Json.toJson(InvalidRequestError(Some(f.errorsAsJson.toString())))))
+  def errorToJson(error: OauthError)(implicit writes: Writes[OauthError]) = Json.toJson(error)(writes)
+
+  def clientOf(tokenRequest: TokenRequest)(implicit request: Request[AnyContent], ec:ExecutionContext): Future[Either[Option[T], OauthError]] = tokenRequest match {
+    case AuthorizationCodeTokenRequest(_, clientId, _) => clientRepository.find(clientId).map(Left(_))
+    case _ => authenticate(request)
   }
 
-  def onTokenRequest(tokenRequest: TokenRequest)(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
-    clientRepository.find(tokenRequest.clientId).flatMap{ _.fold(Future.successful(Unauthorized(Json.toJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound, tokenRequest.clientId))))))){ client =>
+  def onTokenFormError(f:Form[_ <: TokenRequest])(implicit request:Request[AnyContent], ec:ExecutionContext, writes: Writes[OauthError]) = {
+    Future.successful(BadRequest(errorToJson(InvalidRequestError(Some(f.errorsAsJson.toString())))))
+  }
+
+  def onTokenRequest(tokenRequest: TokenRequest)(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit request:Request[AnyContent], ec:ExecutionContext, writes: Writes[OauthError]) = {
+
+    clientOf(tokenRequest).flatMap(_.fold(_.fold(Future.successful(Unauthorized(errorToJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
       Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap(_ match {
-        case Some(e) => Future.successful(BadRequest(Json.toJson(e.get)))
+        case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
+        case _ => f(tokenRequest, client)(request)
+      })
+    }, error => Future.successful(Unauthorized(errorToJson(error)))))
+
+    /*
+    clientOf(tokenRequest).flatMap{ _.fold(Future.successful(Unauthorized(errorToJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
+      Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap(_ match {
+        case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
         case _ => f(tokenRequest, client)(request)
       })
     }}
+    */
   }
 
-  def token(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext) =
+  def token(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]) =
     Action.async { implicit request =>
-      val form = tokenRequestForm.bindFromRequest
 
-      Option(request.queryString.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
-        form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-      }.getOrElse(form).fold(onTokenFormError, onTokenRequest(_)(f))
+      val formOrError: Either[Form[_ <: TokenRequest], OauthError] = request.getQueryString(OAuth.OauthGrantType).fold[Either[Form[_ <: TokenRequest], OauthError]](Right(InvalidRequestError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))){ grantType =>
+        Option(grantType).filter(supportedGrantType.contains) match {
+          case Some(OAuth.GrantType.AuthorizationCode) => Left(authorizationCodeTokenRequestForm.bindFromRequest)
+          case Some(OAuth.GrantType.ClientCredentials) => Left(clientCredentialsTokenRequestForm.bindFromRequest)
+          case Some(OAuth.GrantType.Password) => Left(passwordTokenRequestForm.bindFromRequest)
+          case _ => Right(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, grantType))))
+        }
+      }
+
+      formOrError.fold(form => {
+        Option(request.queryString.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
+          form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
+        }.getOrElse(form).fold(onTokenFormError, onTokenRequest(_)(f))
+      }, error => {
+        Future.successful(BadRequest(errorToJson(error)))
+      })
 
     }
 
-  def perform(implicit ec:ExecutionContext, writes: Writes[TO]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
-    codeRepository.find(tokenRequest.code).flatMap(_.fold(Future.successful(BadRequest(Json.toJson(InvalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, tokenRequest.code))))))){ code =>
-      Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec)))(_.isDefined).flatMap(_ match {
-        case Some(e) => Future.successful(BadRequest(Json.toJson(e.get)))
-        case _ => {
-          tokenFactory(code, tokenRequest.redirectUri).flatMap {
-            tokenRepository.save(_).map { token =>
-              Ok(Json.toJson(token))
+  def perform(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
+    tokenRequest match {
+      case t:AuthorizationCodeTokenRequest =>
+        codeRepository.find(t.code).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))){ code =>
+          Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec)))(_.isDefined).flatMap(_ match {
+            case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
+            case _ => {
+              tokenFactory(code, t.redirectUri).flatMap {
+                tokenRepository.save(_).map { token =>
+                  Ok(Json.toJson(token))
+                }
+              }
             }
-          }
-        }
-      })
-    })
+          })
+        })
+      case _ => Future.successful(Ok("TODO"))
+    }
+
   }
 }

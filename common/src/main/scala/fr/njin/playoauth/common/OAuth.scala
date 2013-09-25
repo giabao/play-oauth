@@ -28,10 +28,10 @@ object OAuth {
   val OauthClientSecret = "client_secret"
   val OauthRedirectUri = "redirect_uri"
   val OauthGrantType = "grant_type"
+  val OauthUsername = "username"
+  val OauthPassword = "password"
 
   /*
-  val OAUTH_USERNAME = "username"
-  val OAUTH_PASSWORD = "password"
   val OAUTH_ASSERTION_TYPE = "assertion_type"
   val OAUTH_ASSERTION = "assertion"
   */

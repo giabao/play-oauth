@@ -1,14 +1,10 @@
-import fr.njin.playoauth.common.domain.BasicOauthClientInfo
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
 import play.api.libs.json.Json
-import play.api.mvc.AnyContentAsFormUrlEncoded
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{ExecutionContext, Await}
-import scala.concurrent.duration._
-import com.github.theon.uri.Uri.parse
 import Utils._
 
 /**
@@ -185,8 +181,9 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     "The authenticated client is not authorized to use this authorization grant type." in new EndPointWithClients {
       val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
-        OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
-        OAuth.OauthCode -> AuthorizationCode
+        OAuth.OauthGrantType -> OAuth.GrantType.Password,
+        OAuth.OauthUsername -> "username",
+        OAuth.OauthPassword -> "password"
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnauthorizedClient)
@@ -195,9 +192,9 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     "The authorization grant type is not supported by the authorization server." in new EndPointWithClients {
       val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform).apply(OauthFakeRequest(
         OAuth.OauthClientId -> AnotherClientWithCode,
-        OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials,
-        OAuth.OauthCode -> AnotherAuthorizationCode,
-        OAuth.OauthRedirectUri -> RedirectURI
+        OAuth.OauthGrantType -> OAuth.GrantType.Password,
+        OAuth.OauthUsername -> "username",
+        OAuth.OauthPassword -> "password"
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnsupportedGrantType)
