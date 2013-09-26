@@ -35,6 +35,12 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AnotherAuthorizationCode,
           OAuth.OauthRedirectUri -> RedirectURI
+        ),
+        OauthFakeRequest(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.Password,
+          OAuth.OauthUsername -> Username,
+          OAuth.OauthPassword -> Password
         )
       ).map { request =>
         val r = token.apply(request)
@@ -42,6 +48,8 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
         (contentAsJson(r) \ OAuth.OauthError).asOpt[String] must beNone
         (contentAsJson(r) \ OAuth.OauthAccessToken).asOpt[String] must beSome[String]
         (contentAsJson(r) \ OAuth.OauthTokenType).asOpt[String] must beSome[String]
+        header("Cache-Control", r) must beSome("no-store")
+        header("Pragma", r) must beSome("no-cache")
         Json.toJson(Await.result(tokenRepository.find((contentAsJson(r) \ OAuth.OauthAccessToken).as[String]), timeout)) must beEqualTo(contentAsJson(r))
       }
 
@@ -102,6 +110,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidRequest)
     }
 
+    /*
     "includes multiple credentials" in new EndPointWithClients {
       failure("TODO client authentication")
     }
@@ -109,6 +118,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     "utilizes more than one mechanism for authenticating the client" in new EndPointWithClients {
       failure("TODO client authentication")
     }
+    */
 
     """Client authentication failed (e.g., unknown client, no
     client authentication included, or unsupported
@@ -122,7 +132,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidClient)
     }
 
-    "The provided authorization grant is invalid" in new EndPointWithClients {
+    "The provided authorization authorization code is invalid" in new EndPointWithClients {
       val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
@@ -131,6 +141,18 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
       (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorUnknownAuthorizationCode)
+    }
+
+    "The provided username/password is invalid" in new EndPointWithClients {
+      val r = token.apply(OauthFakeRequest(
+        OAuth.OauthClientId -> AnotherClientWithCode,
+        OAuth.OauthGrantType -> OAuth.GrantType.Password,
+        OAuth.OauthUsername -> "unknown_username",
+        OAuth.OauthPassword -> Password
+      ))
+      status(r) must equalTo(BAD_REQUEST)
+      (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.InvalidGrant)
+      (contentAsJson(r) \ OAuth.OauthErrorDescription).as[String] must equalTo(OAuth.ErrorInvalidCredentials)
     }
 
     "The provided authorization grant is expired" in new EndPointWithClients {
@@ -182,19 +204,19 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
       val r = token.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.Password,
-        OAuth.OauthUsername -> "username",
-        OAuth.OauthPassword -> "password"
+        OAuth.OauthUsername -> Username,
+        OAuth.OauthPassword -> Password
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnauthorizedClient)
     }
 
     "The authorization grant type is not supported by the authorization server." in new EndPointWithClients {
-      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform).apply(OauthFakeRequest(
+      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform(userByUsername)).apply(OauthFakeRequest(
         OAuth.OauthClientId -> AnotherClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.Password,
-        OAuth.OauthUsername -> "username",
-        OAuth.OauthPassword -> "password"
+        OAuth.OauthUsername -> Username,
+        OAuth.OauthPassword -> Password
       ))
       status(r) must equalTo(BAD_REQUEST)
       (contentAsJson(r) \ OAuth.OauthError).as[String] must equalTo(OAuth.ErrorCode.UnsupportedGrantType)

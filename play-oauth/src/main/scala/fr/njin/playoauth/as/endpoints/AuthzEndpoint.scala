@@ -27,7 +27,7 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   scopeRepository: OauthScopeRepository[SC],
   codeFactory: OauthCodeFactory[CO, RO, P, T],
   codeRepository: OauthCodeRepository[CO, RO, P, T],
-  tokenFactory: OauthTokenFactory[TO, CO, RO, P, T],
+  tokenFactory: OauthTokenFactory[TO, RO, P, T],
   tokenRepository: OauthTokenRepository[TO],
   supportedResponseType: Seq[String] = OAuth.ResponseType.All
 ) extends common.Logger {
@@ -128,7 +128,7 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
                 case OAuth.ResponseType.Code =>
                   authzAccept(code)(authzRequest, oauthClient)(request)
                 case OAuth.ResponseType.Token =>
-                  tokenFactory(code, authzRequest.redirectUri).flatMap {
+                  tokenFactory(code.owner, code.client, authzRequest.redirectUri, code.scopes).flatMap {
                     tokenRepository.save(_).flatMap { token =>
                       authzAccept(token)(authzRequest, oauthClient)(request)
                     }

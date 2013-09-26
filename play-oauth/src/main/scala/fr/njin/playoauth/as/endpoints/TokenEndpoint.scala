@@ -13,7 +13,7 @@ import play.api.mvc.SimpleResult
 import Results._
 import OauthError._
 import play.api.libs.json.{Writes, Json}
-import fr.njin.playoauth.common.request.{AuthorizationCodeTokenRequest, TokenRequest}
+import fr.njin.playoauth.common.request.{PasswordTokenRequest, AuthorizationCodeTokenRequest, TokenRequest}
 import Requests._
 import java.util.Date
 
@@ -32,7 +32,7 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   scopeRepository: OauthScopeRepository[SC],
   codeFactory: OauthCodeFactory[CO, RO, P, T],
   codeRepository: OauthCodeRepository[CO, RO, P, T],
-  tokenFactory: OauthTokenFactory[TO, CO, RO, P, T],
+  tokenFactory: OauthTokenFactory[TO, RO, P, T],
   tokenRepository: OauthTokenRepository[TO],
   supportedGrantType: Seq[String] = OAuth.GrantType.All
 ) extends common.Logger {
@@ -109,14 +109,6 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
       })
     }, error => Future.successful(Unauthorized(errorToJson(error)))))
 
-    /*
-    clientOf(tokenRequest).flatMap{ _.fold(Future.successful(Unauthorized(errorToJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
-      Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap(_ match {
-        case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
-        case _ => f(tokenRequest, client)(request)
-      })
-    }}
-    */
   }
 
   def token(f:(TokenRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]) =
@@ -141,23 +133,30 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
 
     }
 
-  def perform(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
+  def perform(owner: (String, String) => Future[Option[RO]])(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
     tokenRequest match {
       case t:AuthorizationCodeTokenRequest =>
         codeRepository.find(t.code).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))){ code =>
           Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec)))(_.isDefined).flatMap(_ match {
             case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
-            case _ => {
-              tokenFactory(code, t.redirectUri).flatMap {
-                tokenRepository.save(_).map { token =>
-                  Ok(Json.toJson(token))
-                }
-              }
-            }
+            case _ => issueAToken(code.owner, code.client, t.redirectUri, code.scopes)
           })
         })
+
+      case t:PasswordTokenRequest =>
+        owner(t.username, t.password).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
+           issueAToken(resourceOwner, oauthClient, None, t.scope)
+        })
+
       case _ => Future.successful(Ok("TODO"))
     }
-
   }
+
+  def issueAToken(owner: RO, client: T, redirectUri: Option[String], scope: Option[Seq[String]])(implicit ec:ExecutionContext, writes: Writes[TO]): Future[SimpleResult] =
+    tokenFactory(owner, client, redirectUri, scope).flatMap {
+      tokenRepository.save(_).map { token =>
+        Ok(Json.toJson(token))
+          .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
+      }
+    }
 }

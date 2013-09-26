@@ -1,5 +1,8 @@
 package fr.njin.playoauth.as
 
+import play.api.mvc.{AnyContent, Request}
+import org.apache.commons.codec.binary.Base64
+
 
 /**
  * User: bathily
@@ -14,6 +17,17 @@ object Utils {
         pair._2.map(v => pair._1+"="+URLEncoder.encode(v, "UTF-8"))
       }.mkString("&")
     }.getOrElse("")
+  }
+
+  def parseBasicAuth(request: Request[AnyContent]): Option[(String, String)] = {
+    request.headers.get("Authorization").flatMap { authorization =>
+      authorization.split(" ").drop(1).headOption.flatMap { encoded =>
+        new String(Base64.decodeBase64(encoded.getBytes)).split(":").toList match {
+          case u :: p :: Nil => Some(u -> p)
+          case _ => None
+        }
+      }
+    }
   }
 
 }

@@ -15,8 +15,8 @@ trait OauthToken {
 
 }
 
-trait OauthTokenFactory[TO <: OauthToken, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C <: OauthClient] {
-  def apply(code:CO, redirectUri: Option[String])(implicit ec:ExecutionContext): Future[TO]
+trait OauthTokenFactory[TO <: OauthToken, RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C <: OauthClient] {
+  def apply(owner:RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]])(implicit ec:ExecutionContext): Future[TO]
 }
 
 trait OauthTokenRepository[TO <: OauthToken] {

@@ -80,6 +80,7 @@ object OAuth {
   val ErrorClientNotMatch = "error.client.not_match"
   val ErrorRedirectURINotMatch = "error.redirectUri.not_match"
   val ErrorMultipleParameters = "error.multiple.parameters"
+  val ErrorInvalidCredentials = "error.invalid.credentials"
 
   object ErrorCode {
     val InvalidRequest = "invalid_request"

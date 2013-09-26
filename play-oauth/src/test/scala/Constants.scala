@@ -1,5 +1,8 @@
 object Constants {
 
+  val Username = "username"
+  val Password = "password"
+
   val AuthorizationCode = "a_code"
   val ExpiredAuthorizationCode = "expired_code"
   val RevokedAuthorizationCode = "revoked_code"
