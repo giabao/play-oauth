@@ -56,4 +56,20 @@ object Requests {
       OAuth.OauthScope -> optional(of[Seq[String]](scopeFormatter))
     )(ClientCredentialsTokenRequest.apply)(ClientCredentialsTokenRequest.unapply)
   }
+
+  val refreshTokenRequestForm = Form {
+    mapping(
+      OAuth.OauthRefreshToken -> nonEmptyText,
+      OAuth.OauthScope -> optional(of[Seq[String]](scopeFormatter))
+    )(RefreshTokenRequest.apply)(RefreshTokenRequest.unapply)
+  }
+
+  val tokenForms = Map(
+    OAuth.GrantType.AuthorizationCode -> authorizationCodeTokenRequestForm,
+    OAuth.GrantType.ClientCredentials -> clientCredentialsTokenRequestForm,
+    OAuth.GrantType.Password -> passwordTokenRequestForm,
+    OAuth.GrantType.RefreshToken -> refreshTokenRequestForm
+  )
+  
+
 }

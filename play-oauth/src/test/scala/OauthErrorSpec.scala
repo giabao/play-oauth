@@ -1,4 +1,4 @@
-import fr.njin.playoauth.as.endpoints.OauthError
+import fr.njin.playoauth.as.OauthError
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import play.api.libs.json.Json

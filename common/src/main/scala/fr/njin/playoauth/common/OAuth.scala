@@ -7,7 +7,6 @@ import scala.concurrent.duration._
  */
 object OAuth {
 
-
   val MaximumLifetime = 10.minutes
 
   object ResponseType {
@@ -20,7 +19,8 @@ object OAuth {
     val AuthorizationCode = "authorization_code"
     val Password = "password"
     val ClientCredentials = "client_credentials"
-    val All = Seq(AuthorizationCode, Password, ClientCredentials)
+    val RefreshToken = "refresh_token"
+    val All = Seq(AuthorizationCode, Password, ClientCredentials, RefreshToken)
   }
 
   val OauthResponseType = "response_type"
@@ -31,10 +31,6 @@ object OAuth {
   val OauthUsername = "username"
   val OauthPassword = "password"
 
-  /*
-  val OAUTH_ASSERTION_TYPE = "assertion_type"
-  val OAUTH_ASSERTION = "assertion"
-  */
   val OauthScope = "scope"
   val OauthState = "state"
   val OauthCode = "code"
@@ -45,26 +41,6 @@ object OAuth {
   val OauthTokenType = "token_type"
   val OauthExpiresIn = "expires_in"
   val OauthRefreshToken = "refresh_token"
-
-  /*
-
-
-  val OAUTH_HEADER_NAME = "Bearer"
-  */
-  /*
-  //Authorization response params
-  val OAUTH_CODE = "code"
-
-  val OAUTH_TOKEN = "oauth_token"
-
-  val OAUTH_TOKEN_DRAFT_0 = "access_token"
-  val OAUTH_BEARER_TOKEN = "access_token"
-
-  val DEFAULT_PARAMETER_STYLE = Header
-  val DEFAULT_TOKEN_TYPE = Bearer
-
-  val OAUTH_VERSION_DIFFER = "oauth_signature_method"
-  */
 
   var ErrorClientMissing = "error.missing.clientId"
   val ErrorClientNotFound = "error.client.notfound"

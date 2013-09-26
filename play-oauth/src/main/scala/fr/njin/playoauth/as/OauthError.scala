@@ -1,4 +1,4 @@
-package fr.njin.playoauth.as.endpoints
+package fr.njin.playoauth.as
 
 import fr.njin.playoauth.common.OAuth
 import play.api.libs.json._

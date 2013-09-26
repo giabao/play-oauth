@@ -1,3 +1,5 @@
+package domain
+
 import fr.njin.playoauth.common.domain._
 import java.util.{Date, UUID}
 import scala.concurrent.{Future, ExecutionContext}

@@ -18,3 +18,7 @@ case class PasswordTokenRequest(username: String, password: String, scope: Optio
 case class ClientCredentialsTokenRequest(scope: Option[Seq[String]]) extends TokenRequest {
   def grantType = OAuth.GrantType.ClientCredentials
 }
+
+case class RefreshTokenRequest(refreshToken: String, scope: Option[Seq[String]]) extends TokenRequest {
+  def grantType = OAuth.GrantType.RefreshToken
+}

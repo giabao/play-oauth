@@ -1,5 +1,5 @@
-import fr.njin.playoauth.as.endpoints
-import fr.njin.playoauth.as.endpoints.{ClientAuthentication, OauthError}
+import fr.njin.playoauth.as.{OauthError, endpoints}
+import fr.njin.playoauth.as.endpoints.{ClientAuthentication}
 import fr.njin.playoauth.common.domain._
 import fr.njin.playoauth.common.OAuth
 import java.util.Date
@@ -30,13 +30,13 @@ trait Endpoint extends Scope {
   lazy val factory = new UUIDOauthClientFactory()
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
   lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
-  lazy val codeFactory = new UUIDOauthCodeFactory[User, BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]()
+  lazy val codeFactory = new UUIDOauthCodeFactory[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]()
   lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]()
-  lazy val tokenFactory = new UUIDOauthTokenFactory[User, BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]()
-  lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken]()
-  lazy val authzEndpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository)
-  lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository) with ExampleClientAuthentication
-  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
+  lazy val tokenFactory = new UUIDOauthTokenFactory[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]()
+  lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]()
+  lazy val authzEndpoint = new endpoints.AuthzEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository)
+  lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository) with ExampleClientAuthentication
+  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
 
   def userByUsername: (String, String) => ExecutionContext => Future[Option[User]] = (u,p) => ec => Future.successful(user.filter(user => user.username == u && user.password == p))
   def userOfClient: BasicOauthClient => ExecutionContext => Future[Option[User]] = client => ec => Future.successful(Some(User(client.id, client.id, Map.empty)))
@@ -46,7 +46,7 @@ trait Endpoint extends Scope {
     (ar,c) => r => Future.successful(Results.Forbidden(""))
   ))(ec)
 
-  def token(implicit ec:ExecutionContext, writes: Writes[BasicOauthToken], errorWrites: Writes[OauthError]) = tokenEndpoint.token(tokenEndpoint.perform(userByUsername, userOfClient))(ec, writes, errorWrites)
+  def token(implicit ec:ExecutionContext, writes: Writes[BasicOauthToken[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient]], errorWrites: Writes[OauthError]) = tokenEndpoint.token(tokenEndpoint.perform(userByUsername, userOfClient))(ec, writes, errorWrites)
 }
 
 trait EndPointWithClients extends Endpoint {

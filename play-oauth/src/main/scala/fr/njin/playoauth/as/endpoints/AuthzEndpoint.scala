@@ -13,6 +13,7 @@ import scala.Some
 import play.api.mvc.SimpleResult
 import Results._
 import play.api.http.Status._
+import fr.njin.playoauth.as.OauthError
 import OauthError._
 import fr.njin.playoauth.common.request.AuthzRequest
 import Requests._
@@ -21,14 +22,14 @@ import Requests._
  * User: bathily
  * Date: 17/09/13
  */
-class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken](
+class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
   clientFactory: OauthClientFactory[I , T],
   clientRepository: OauthClientRepository[T],
   scopeRepository: OauthScopeRepository[SC],
   codeFactory: OauthCodeFactory[CO, RO, P, T],
   codeRepository: OauthCodeRepository[CO, RO, P, T],
   tokenFactory: OauthTokenFactory[TO, RO, P, T],
-  tokenRepository: OauthTokenRepository[TO],
+  tokenRepository: OauthTokenRepository[TO, RO, P, T],
   supportedResponseType: Seq[String] = OAuth.ResponseType.All
 ) extends common.Logger {
 

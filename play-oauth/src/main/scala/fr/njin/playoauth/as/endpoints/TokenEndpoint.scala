@@ -11,11 +11,18 @@ import scala.Predef._
 import scala.Some
 import play.api.mvc.SimpleResult
 import Results._
+import fr.njin.playoauth.as.OauthError
 import OauthError._
 import play.api.libs.json.{Writes, Json}
-import fr.njin.playoauth.common.request.{ClientCredentialsTokenRequest, PasswordTokenRequest, AuthorizationCodeTokenRequest, TokenRequest}
+import fr.njin.playoauth.common.request._
 import Requests._
 import java.util.Date
+import fr.njin.playoauth.common.request.PasswordTokenRequest
+import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
+import scala.Some
+import play.api.mvc.SimpleResult
+import fr.njin.playoauth.common.request.ClientCredentialsTokenRequest
+import fr.njin.playoauth.as.OauthError
 
 /**
  * User: bathily
@@ -26,14 +33,14 @@ trait ClientAuthentication[T <: OauthClient] {
   def authenticate(request: Request[AnyContent])(implicit ec: ExecutionContext): Future[Either[Option[T], OauthError]]
 }
 
-class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken](
+class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
   clientFactory: OauthClientFactory[I , T],
   clientRepository: OauthClientRepository[T],
   scopeRepository: OauthScopeRepository[SC],
   codeFactory: OauthCodeFactory[CO, RO, P, T],
   codeRepository: OauthCodeRepository[CO, RO, P, T],
   tokenFactory: OauthTokenFactory[TO, RO, P, T],
-  tokenRepository: OauthTokenRepository[TO],
+  tokenRepository: OauthTokenRepository[TO, RO, P, T],
   supportedGrantType: Seq[String] = OAuth.GrantType.All
 ) extends common.Logger {
 
@@ -114,12 +121,10 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
     Action.async { implicit request =>
 
       val formOrError: Either[Form[_ <: TokenRequest], OauthError] = request.getQueryString(OAuth.OauthGrantType).fold[Either[Form[_ <: TokenRequest], OauthError]](Right(InvalidRequestError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))){ grantType =>
-        Option(grantType).filter(supportedGrantType.contains) match {
-          case Some(OAuth.GrantType.AuthorizationCode) => Left(authorizationCodeTokenRequestForm.bindFromRequest)
-          case Some(OAuth.GrantType.ClientCredentials) => Left(clientCredentialsTokenRequestForm.bindFromRequest)
-          case Some(OAuth.GrantType.Password) => Left(passwordTokenRequestForm.bindFromRequest)
-          case _ => Right(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, grantType))))
-        }
+        Option(grantType).filter(supportedGrantType.contains)
+          .flatMap(tokenForms.get)
+          .map(_.bindFromRequest)
+          .toLeft(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, grantType))))
       }
 
       formOrError.fold(form => {
@@ -152,7 +157,16 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
           issueAToken(resourceOwner, oauthClient, None, t.scope)
         })
 
-      case _ => Future.successful(Ok("TODO"))
+      case t:RefreshTokenRequest =>
+        tokenRepository.findForRefreshToken(t.refreshToken)(ec).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorClientNotFound))))))){ previousToken =>
+          for {
+            Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)(ec)
+            token <- issueAToken(revoked.owner, revoked.client, None, revoked.scope)
+          } yield token
+        })
+
+      //Can not happen
+      case _ => Future.successful(BadRequest(errorToJson(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))))
     }
   }
 
