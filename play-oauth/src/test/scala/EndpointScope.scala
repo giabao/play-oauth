@@ -38,14 +38,15 @@ trait Endpoint extends Scope {
   lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository) with ExampleClientAuthentication
   lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClientInfo, BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOAuthPermission[BasicOauthClient], BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken](factory, repository, scopeRepository, codeFactory, codeRepository, tokenFactory, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
 
-  def userByUsername:(String, String) => Future[Option[User]] = (u,p) => Future.successful(user.filter(user => user.username == u && user.password == p))
+  def userByUsername: (String, String) => ExecutionContext => Future[Option[User]] = (u,p) => ec => Future.successful(user.filter(user => user.username == u && user.password == p))
+  def userOfClient: BasicOauthClient => ExecutionContext => Future[Option[User]] = client => ec => Future.successful(Some(User(client.id, client.id, Map.empty)))
 
   def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(authzEndpoint.perform(r => user)(
     (ar,c) => r => Future.successful(Results.Unauthorized("")),
     (ar,c) => r => Future.successful(Results.Forbidden(""))
   ))(ec)
 
-  def token(implicit ec:ExecutionContext, writes: Writes[BasicOauthToken], errorWrites: Writes[OauthError]) = tokenEndpoint.token(tokenEndpoint.perform(userByUsername))(ec, writes, errorWrites)
+  def token(implicit ec:ExecutionContext, writes: Writes[BasicOauthToken], errorWrites: Writes[OauthError]) = tokenEndpoint.token(tokenEndpoint.perform(userByUsername, userOfClient))(ec, writes, errorWrites)
 }
 
 trait EndPointWithClients extends Endpoint {

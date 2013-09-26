@@ -13,7 +13,7 @@ import play.api.mvc.SimpleResult
 import Results._
 import OauthError._
 import play.api.libs.json.{Writes, Json}
-import fr.njin.playoauth.common.request.{PasswordTokenRequest, AuthorizationCodeTokenRequest, TokenRequest}
+import fr.njin.playoauth.common.request.{ClientCredentialsTokenRequest, PasswordTokenRequest, AuthorizationCodeTokenRequest, TokenRequest}
 import Requests._
 import java.util.Date
 
@@ -83,7 +83,6 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
           }
         case _ => None
       }
-
     }
   }
 
@@ -133,7 +132,7 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
 
     }
 
-  def perform(owner: (String, String) => Future[Option[RO]])(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
+  def perform(owner: (String, String) => ExecutionContext => Future[Option[RO]], clientOwner: T  => ExecutionContext => Future[Option[RO]])(implicit ec:ExecutionContext, writes: Writes[TO], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContent] => Future[SimpleResult] = (tokenRequest, oauthClient) => implicit request => {
     tokenRequest match {
       case t:AuthorizationCodeTokenRequest =>
         codeRepository.find(t.code).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))){ code =>
@@ -144,8 +143,13 @@ class TokenEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
         })
 
       case t:PasswordTokenRequest =>
-        owner(t.username, t.password).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
+        owner(t.username, t.password)(ec).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
            issueAToken(resourceOwner, oauthClient, None, t.scope)
+        })
+
+      case t:ClientCredentialsTokenRequest =>
+        clientOwner(oauthClient)(ec).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
+          issueAToken(resourceOwner, oauthClient, None, t.scope)
         })
 
       case _ => Future.successful(Ok("TODO"))

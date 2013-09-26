@@ -41,6 +41,10 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
           OAuth.OauthGrantType -> OAuth.GrantType.Password,
           OAuth.OauthUsername -> Username,
           OAuth.OauthPassword -> Password
+        ),
+        OauthFakeRequest(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.ClientCredentials
         )
       ).map { request =>
         val r = token.apply(request)
@@ -81,6 +85,16 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
           OAuth.OauthClientId -> AnotherClientWithCode,
           OAuth.OauthGrantType -> OAuth.GrantType.AuthorizationCode,
           OAuth.OauthCode -> AnotherAuthorizationCode
+        ),
+        OauthFakeRequest(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.Password,
+          OAuth.OauthUsername -> Username
+        ),
+        OauthFakeRequest(
+          OAuth.OauthClientId -> AnotherClientWithCode,
+          OAuth.OauthGrantType -> OAuth.GrantType.Password,
+          OAuth.OauthPassword -> Password
         )
       ).map(request => {
         val r = token.apply(request)
@@ -212,7 +226,7 @@ class TokenEndpointSpec extends Specification with NoTimeConversions {
     }
 
     "The authorization grant type is not supported by the authorization server." in new EndPointWithClients {
-      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform(userByUsername)).apply(OauthFakeRequest(
+      val r = tokenWithOnlyAuthorisationCodeEndpoint.token(tokenWithOnlyAuthorisationCodeEndpoint.perform(userByUsername, userOfClient)).apply(OauthFakeRequest(
         OAuth.OauthClientId -> AnotherClientWithCode,
         OAuth.OauthGrantType -> OAuth.GrantType.Password,
         OAuth.OauthUsername -> Username,
