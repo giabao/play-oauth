@@ -123,7 +123,9 @@ object PlayAuthServerBuild extends Build {
   val appVersion      = buildVersion
 
   val appDependencies = Seq(
-    // Add your project dependencies here,
+    "com.github.seratch"  %% "scalikejdbc-async" % "[0.2,)",
+    "com.github.mauricio" %% "mysql-async"       % "[0.2,)",
+    "com.github.seratch"  %% "scalikejdbc-async-play-plugin" % "[0.2,)"
   )
 
   val main = play.Project(appName, appVersion, appDependencies, file("play-oauth-server")).settings(
