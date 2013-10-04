@@ -3,10 +3,28 @@
 # ~~~~
 
 # Home page
-GET        /                    controllers.Application.index
-GET        /login               controllers.Application.login
-GET        /authz               controllers.Application.authz
+GET         /                    controllers.Application.index
+GET         /signin              controllers.Application.signIn(back: Option[String] ?= None)
+POST        /signin              controllers.Application.doSignIn(back: Option[String] ?= None)
+GET         /signup              controllers.Application.signUp(back: Option[String] ?= None)
+POST        /signup              controllers.Application.doSignUp(back: Option[String] ?= None)
+GET         /logout              controllers.Application.logout
+
+
+GET         /apps                           controllers.Apps.list
+GET         /apps/new                       controllers.Apps.create
+POST        /apps/new                       controllers.Apps.doCreate
+GET         /apps/$id<[0-9]>                controllers.Apps.app(id: Long)
+GET         /apps/$id<[0-9]>/edit           controllers.Apps.edit(id: Long)
+POST        /apps/$id<[0-9]>/edit           controllers.Apps.doEdit(id: Long)
+GET         /apps/$id<[0-9]>/delete         controllers.Apps.delete(id: Long)
+POST        /apps/$id<[0-9]>/doDelete       controllers.Apps.doDelete(id: Long)
+
+
+GET         /authz               controllers.Authorization.authz
+
+GET         /user/profile        controllers.Users.profile
 
 
 # Map static resources from the /public folder to the /assets URL path
-GET        /assets/*file        controllers.Assets.at(path="/public", file)
+GET         /assets/*file        controllers.Assets.at(path="/public", file)

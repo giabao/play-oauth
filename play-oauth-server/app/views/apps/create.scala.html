@@ -1,0 +1,70 @@
+@(form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+
+    @part.navbar("apps", request.user)
+
+    <div class="container">
+
+        <h3>@Messages("app.create.title")</h3>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+            @helper.form(action = routes.Apps.doCreate(), 'class -> "form-horizontal") {
+
+                @if(form.hasErrors) {
+                    <div class="alert alert-danger">
+                        <strong>@Messages("create-app.form.has-error", form.errors.length)</strong> @form.globalError.map(e => Messages(e.message, e.args))
+                    </div>
+                }
+
+                <div>
+                    @defining(form("name")){ field =>
+                        <div class="form-group @{"has-error".when(field.hasErrors)}">
+                            <label for="@field.id" class="col-sm-2 control-label">@Messages(field.name)</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
+                            </div>
+
+                        </div>
+                    }
+                    @defining(form("description")){ field =>
+                        <div class="form-group @{"has-error".when(field.hasErrors)}">
+                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
+                        </div>
+                    }
+
+                    @defining(form("uri")){ field =>
+                        <div class="form-group @{"has-error".when(field.hasErrors)}">
+                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
+                        </div>
+                    }
+
+                    @defining(form("iconUri")){ field =>
+                        <div class="form-group @{"has-error".when(field.hasErrors)}">
+                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
+                        </div>
+                    }
+
+                    @defining(form("redirectUris")){ field =>
+                        <div class="form-group @{"has-error".when(field.hasErrors)}">
+                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
+                        </div>
+                    }
+
+                </div>
+
+
+                <button class="btn btn-lg btn-primary btn-block" type="submit">@Messages("signup.submit")</button>
+            }
+            </div>
+        </div>
+    </div>
+}
+
+@main("Oauth 2")(c, s)

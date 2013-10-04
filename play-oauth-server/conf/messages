@@ -1,0 +1,34 @@
+page.title.signup = Sign up
+signup.heading = Please sign up
+signup.already.member = Already a member?
+signup.already.member.signin.link = Sign in now
+signup.submit = Sign up
+signup.form.has-error = There is {0,choice,1#one errror|1<some errors} !
+
+page.title.signin = Sign in
+signin.heading = Please sign in
+signin.not.member = Not a member?
+signin.not.member.signup.link = Sign up now
+signin.submit = Sign in
+signin.form.has-error = There is {0,choice,1#one errror|1<some errors} !
+
+firstName.placeholder = Your first name
+lastName.placeholder = Your last name
+email.placeholder = Your email
+password.placeholder = Your password
+
+home.link = Home
+apps.link = Your apps
+all-apps.link = View all
+profile.link = Edit your profile
+logout.link = Log out
+
+app.title = Oauth 2 server sample
+app.description = This application is a quick example to illustration the usage of ...
+
+apps.empty.list = You do not have any applications
+apps.create.first = Create your first app
+
+error.user.exist = Your already have an account?
+error.user.not.found = User not found
+error.credentials.not.match = Please check your credentials

@@ -1,1 +1,2 @@
-100:scalikejdbc.async.PlayPlugin
+100:com.github.tototoshi.play2.flyway.Plugin
+101:scalikejdbc.async.PlayPlugin

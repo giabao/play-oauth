@@ -1,7 +1,22 @@
-@(message: String)
+@()(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
 
-@main("Welcome to Play 2.1") {
-    
-    @play20.welcome(message)
-    
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
 }
+
+@c = {
+
+    @part.navbar("home", request.user)
+
+    <div class="container">
+        <div class="jumbotron">
+            <h1>@Messages("app.title")</h1>
+            <p>@Messages("app.description")</p>
+            <p>
+                <a class="btn btn-lg btn-primary" href="@routes.Apps.list.url">@Messages("apps.link") &raquo;</a>
+            </p>
+        </div>
+    </div>
+}
+
+@main("Oauth 2")(c, s)

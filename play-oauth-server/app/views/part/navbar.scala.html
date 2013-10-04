@@ -1,0 +1,40 @@
+@(id: String, user: User)
+
+
+<!-- Fixed navbar -->
+<div class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="@routes.Application.index.url">Oauth 2</a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li class="@{"active".when(id == "home")}"><a href="@routes.Application.index.url">@Messages("home.link")</a></li>
+                <li class="dropdown @{"active".when(id == "apps" || id == "app")}">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">@Messages("apps.link") <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#">Action</a></li>
+                        <li><a href="#">Another action</a></li>
+                        <li><a href="#">Something else here</a></li>
+                        <li class="divider"></li>
+                        <li><a href="@routes.Apps.list.url">@Messages("all-apps.link")</a></li>
+                    </ul>
+                </li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li class="dropdown @{"active".when(id == "profile")}">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">@user.name <b class="caret"></b></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="@routes.Users.profile.url">@Messages("profile.link")</a></li>
+                        <li><a href="@routes.Application.logout.url">@Messages("logout.link")</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>

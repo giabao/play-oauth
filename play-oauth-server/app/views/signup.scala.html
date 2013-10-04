@@ -1,0 +1,50 @@
+@(back: Option[String], form: Form[(String, String, String, String)])(implicit request: RequestHeader)
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/signin.css")" rel="stylesheet">
+}
+
+@c = {
+    <div class="container">
+        @helper.form(action = routes.Application.doSignUp(back), 'class -> "form-signin") {
+            <h2 class="form-signin-heading">@Messages("signup.heading")</h2>
+            <p>@Messages("signup.already.member") <a href="@routes.Application.signIn(back).url">@Messages("signup.already.member.signin.link")</a></p>
+
+            @if(form.hasErrors) {
+                <div class="alert alert-danger">
+                    <strong>@Messages("signup.form.has-error", form.errors.length)</strong> @form.globalError.map(e => Messages(e.message, e.args))
+                </div>
+            }
+
+            <div>
+                @defining(form("firstName")){ field =>
+                    <div class="@{"has-error".when(field.hasErrors)}">
+                        <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
+                    </div>
+                }
+                @defining(form("lastName")){ field =>
+                    <div class="@{"has-error".when(field.hasErrors)}">
+                        <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
+                    </div>
+                }
+
+                @defining(form("email")){ field =>
+                    <div class="@{"has-error".when(field.hasErrors)}">
+                        <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
+                    </div>
+                }
+
+                @defining(form("password")){ field =>
+                    <div class="@{"has-error".when(field.hasErrors)}">
+                        <input type="password" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
+                    </div>
+                }
+            </div>
+
+
+            <button class="btn btn-lg btn-primary btn-block" type="submit">@Messages("signup.submit")</button>
+        }
+    </div>
+}
+
+@main(Messages("page.title.signup"))(c, s)

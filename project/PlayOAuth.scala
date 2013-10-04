@@ -117,19 +117,42 @@ object PlayOAuthBuild extends Build {
 
 object PlayAuthServerBuild extends Build {
   import BuildSettings._
-  import play.Project._
 
   val appName         = projectName+"-server"
   val appVersion      = buildVersion
 
   val appDependencies = Seq(
+    "org.mindrot" % "jbcrypt" % "0.3m",
+
+    "mysql" % "mysql-connector-java" % "5.1.18",
     "com.github.seratch"  %% "scalikejdbc-async" % "[0.2,)",
     "com.github.mauricio" %% "mysql-async"       % "[0.2,)",
-    "com.github.seratch"  %% "scalikejdbc-async-play-plugin" % "[0.2,)"
+    "com.github.seratch"  %% "scalikejdbc-async-play-plugin" % "[0.2,)",
+    "com.github.tototoshi" %% "play-flyway" % "1.0.0-SNAPSHOT",
+
+    "com.github.seratch" %% "scalikejdbc-test" % "[1.6,)"  % "test"
   )
 
   val main = play.Project(appName, appVersion, appDependencies, file("play-oauth-server")).settings(
     // Add your own project settings here
-  ).dependsOn(PlayOAuthBuild.playOAuth)
+  ).dependsOn(PlayOAuthBuild.playOAuth, flywayPlugin).aggregate(flywayPlugin)
+
+  lazy val flywayPlugin = Project (
+    id = "flywayPlugin",
+    base = file ("play-oauth-server/module/play-flyway/plugin"),
+    settings = Defaults.defaultSettings ++ Seq (
+      name := "play-flyway",
+      organization := "com.github.tototoshi",
+      version := "1.0.0-SNAPSHOT",
+      resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
+      libraryDependencies ++= Seq(
+        "com.typesafe.play" %% "play" % "2.2.0" % "provided",
+        "com.googlecode.flyway" % "flyway-core" % "2.1.1",
+        "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+      ),
+      scalacOptions ++= Seq("-language:_", "-deprecation")
+    )
+
+  )
 
 }

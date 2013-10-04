@@ -1,0 +1,27 @@
+@(apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+
+    @part.navbar("apps", request.user)
+
+    <div class="container">
+        @if(apps.isEmpty) {
+            <div class="panel panel-default">
+                <div class="panel-body text-center">
+                    <p>@Messages("apps.empty.list")</p>
+                    <a href="@routes.Apps.create.url" class="btn btn-primary">@Messages("apps.create.first")</a>
+                </div>
+            </div>
+        } else {
+
+        }
+
+    </div>
+}
+
+@main("Oauth 2")(c, s)
