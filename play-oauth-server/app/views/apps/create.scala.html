@@ -1,18 +1,29 @@
-@(form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@(form: Form[controllers.Apps.AppForm], apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
     <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
 }
 
+@text(field:Field)(help: Html = Html("")) = {
+    <div class="form-group @{"has-error".when(field.hasErrors)}">
+        <label for="@field.id" class="col-sm-3 control-label">@Messages("app."+field.name)</label>
+        <div class="col-sm-9">
+            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages("app."+field.name+".placeholder")">
+            @Option(field.errors.map(e => Messages(e.message, e.args:_*)).mkString(", ")).map(s => {
+                Html(s"""<span class="help-block">$s</span>""")
+            })
+            @help
+        </div>
+    </div>
+}
+
 @c = {
 
-    @part.navbar("apps", request.user)
+    @part.navbar("apps", request.user, Some(apps))
 
     <div class="container">
-
         <h3>@Messages("app.create.title")</h3>
-
         <div class="panel panel-default">
             <div class="panel-body">
             @helper.form(action = routes.Apps.doCreate(), 'class -> "form-horizontal") {
@@ -24,43 +35,30 @@
                 }
 
                 <div>
-                    @defining(form("name")){ field =>
-                        <div class="form-group @{"has-error".when(field.hasErrors)}">
-                            <label for="@field.id" class="col-sm-2 control-label">@Messages(field.name)</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
-                            </div>
-
+                    <div class="form-group">
+                        <div class="col-sm-9 col-sm-offset-3">
+                            @defining(form("isWebApp")) { field =>
+                                <label class="checkbox-inline" for="@field.id">
+                                    <input type="checkbox" id="@field.id" name="@field.name" value="true" @{"checked".when(field.value.exists(_ == "true"))}> @Messages("app."+field.name)
+                                </label>
+                            }
+                            @defining(form("isNativeApp")) { field =>
+                                <label class="checkbox-inline" for="@field.id">
+                                    <input type="checkbox" id="@field.id" name="@field.name" value="true" @{"checked".when(field.value.exists(_ == "true"))}> @Messages("app."+field.name)
+                                </label>
+                            }
                         </div>
+                    </div>
+                    @text(form("name"))()
+                    @text(form("description"))()
+                    @text(form("uri"))()
+                    @text(form("iconUri"))()
+                    @text(form("redirectUris")) {
+                        <span class="help-block">@Messages("app.redirectUris.help")</span>
                     }
-                    @defining(form("description")){ field =>
-                        <div class="form-group @{"has-error".when(field.hasErrors)}">
-                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")">
-                        </div>
-                    }
-
-                    @defining(form("uri")){ field =>
-                        <div class="form-group @{"has-error".when(field.hasErrors)}">
-                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
-                        </div>
-                    }
-
-                    @defining(form("iconUri")){ field =>
-                        <div class="form-group @{"has-error".when(field.hasErrors)}">
-                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
-                        </div>
-                    }
-
-                    @defining(form("redirectUris")){ field =>
-                        <div class="form-group @{"has-error".when(field.hasErrors)}">
-                            <input type="text" class="form-control" name="@field.name" id="@field.id" value="@field.value" placeholder="@Messages(field.name+".placeholder")" autocomplete="off">
-                        </div>
-                    }
-
                 </div>
-
-
-                <button class="btn btn-lg btn-primary btn-block" type="submit">@Messages("signup.submit")</button>
+                <a class="btn btn-lg btn-default btn-block" href="@routes.Apps.list.url">@Messages("app.create.cancel")</a>
+                <button class="btn btn-lg btn-primary btn-block" type="submit">@Messages("app.create.submit")</button>
             }
             </div>
         </div>

@@ -6,12 +6,12 @@
 
 @c = {
 
-    @part.navbar("home", request.user)
+    @part.navbar("home", request.user, None)
 
     <div class="container">
         <div class="jumbotron">
-            <h1>@Messages("app.title")</h1>
-            <p>@Messages("app.description")</p>
+            <h1>@Messages("application.title")</h1>
+            <p>@Messages("application.description")</p>
             <p>
                 <a class="btn btn-lg btn-primary" href="@routes.Apps.list.url">@Messages("apps.link") &raquo;</a>
             </p>

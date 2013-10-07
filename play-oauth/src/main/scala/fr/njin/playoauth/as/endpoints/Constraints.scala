@@ -19,4 +19,10 @@ object Constraints {
     if(new UrlValidator(UrlValidator.ALLOW_ALL_SCHEMES + UrlValidator.ALLOW_LOCAL_URLS).isValid(uri)) Valid else invalid
   }
 
+  def uris: Constraint[Seq[String]] = Constraint[Seq[String]]("constraint.uris"){ uris =>
+    uris.filterNot(uri => new UrlValidator(UrlValidator.ALLOW_ALL_SCHEMES + UrlValidator.ALLOW_LOCAL_URLS).isValid(uri)) match {
+      case Seq() => Valid
+      case invalids => Invalid("error.uris", invalids.length, invalids.mkString(","))
+    }
+  }
 }

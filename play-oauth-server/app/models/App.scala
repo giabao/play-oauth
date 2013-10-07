@@ -59,9 +59,9 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
     uri = rs.stringOpt(a.uri),
     iconUri = rs.stringOpt(a.iconUri),
     redirectUris = rs.stringOpt(a.redirectUris).map(_.split(",")),
-    isWebApp = rs.boolean(a.description),
-    isNativeApp = rs.boolean(a.description),
-    createdAt = rs.timestamp(a.description).toDateTime
+    isWebApp = rs.boolean(a.isWebApp),
+    isNativeApp = rs.boolean(a.isNativeApp),
+    createdAt = rs.timestamp(a.createdAt).toDateTime
   )
 
   def apply(a: SyntaxProvider[App], u: SyntaxProvider[User])(rs: WrappedResultSet): App =

@@ -23,12 +23,34 @@ all-apps.link = View all
 profile.link = Edit your profile
 logout.link = Log out
 
-app.title = Oauth 2 server sample
-app.description = This application is a quick example to illustration the usage of ...
+application.title = Oauth 2 server sample
+application.description = This application is a quick example to illustration the usage of ...
 
 apps.empty.list = You do not have any applications
 apps.create.first = Create your first app
 
+app.create.title = Create a new app
+app.isWebApp = A web app
+app.isNativeApp = A native app
+app.name = Name
+app.name.placeholder = What's the name of your app?
+app.description = Description
+app.description.placeholder = What's it about your app?
+app.uri = URL of your app
+app.uri.placeholder = Where to find some information about your app?
+app.iconUri = URL of an icon
+app.iconUri.placeholder = Have you an icon for your app?
+app.redirectUris = Callback URLs
+app.redirectUris.placeholder = Comma-separated list of URL
+app.redirectUris.help = This field is required if your app is a Web App or a Native App
+app.create.cancel = Cancel and return to your apps
+app.create.submit = Create your app
+create-app.form.has-error = There is {0,choice,1#one errror|1<some errors} !
+
 error.user.exist = Your already have an account?
 error.user.not.found = User not found
 error.credentials.not.match = Please check your credentials
+error.redirectUri.required = Please provide a callback URL if your app is a Web App or a Native App
+
+error.uri = This field must be a valid url
+error.uris = {0,choice,1#The following url is|1<The following urls are} not valid : {1}

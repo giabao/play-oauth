@@ -1,4 +1,4 @@
-@(id: String, user: User)
+@(id: String, user: User, apps: Option[Seq[App]])
 
 
 <!-- Fixed navbar -->
@@ -15,16 +15,23 @@
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
                 <li class="@{"active".when(id == "home")}"><a href="@routes.Application.index.url">@Messages("home.link")</a></li>
+                @if(apps.isDefined) {
                 <li class="dropdown @{"active".when(id == "apps" || id == "app")}">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">@Messages("apps.link") <b class="caret"></b></a>
                     <ul class="dropdown-menu">
-                        <li><a href="#">Action</a></li>
-                        <li><a href="#">Another action</a></li>
-                        <li><a href="#">Something else here</a></li>
+                        @apps.map{ as =>
+                            @as.map { app =>
+                                <li><a href="@routes.Apps.app(app.pid).url">@app.name</a></li>
+                            }
+                        }
+                        @if(apps.exists(_.isEmpty)) {
+                            <li><a href="@routes.Apps.create.url">@Messages("apps.create.first")</a></li>
+                        }
                         <li class="divider"></li>
                         <li><a href="@routes.Apps.list.url">@Messages("all-apps.link")</a></li>
                     </ul>
                 </li>
+                }
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li class="dropdown @{"active".when(id == "profile")}">
