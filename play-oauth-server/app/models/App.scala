@@ -16,15 +16,18 @@ case class App(pid: Long,
                owner: Option[User] = None,
                id: String,
                secret: String,
-               name: Option[String],
-               description: Option[String],
-               uri: Option[String],
+               name: String,
+               description: String,
+               uri: String,
                iconUri: Option[String],
                redirectUris: Option[Seq[String]],
                isWebApp: Boolean,
                isNativeApp: Boolean,
-               createdAt: DateTime) extends OauthClient with ShortenedNames {
+               createdAt: DateTime) extends ShortenedNames {
 
+  def save()(implicit session: AsyncDBSession, cxt: EC): Future[App] = App.save(this)
+
+  /*
   val redirectUri: Option[String] = redirectUris.flatMap(_.headOption)
   val clientUri: Option[String] = uri
 
@@ -40,6 +43,7 @@ case class App(pid: Long,
   val allowedGrantType: Seq[String] = Seq(OAuth.GrantType.AuthorizationCode, OAuth.GrantType.ClientCredentials, OAuth.GrantType.RefreshToken)
 
   val issuedAt: Long = createdAt.getMillis
+  */
 }
 
 object App extends SQLSyntaxSupport[App] with ShortenedNames {
@@ -54,9 +58,9 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
     ownerId = rs.long(a.ownerId),
     id = rs.string(a.id),
     secret = rs.string(a.secret),
-    name = rs.stringOpt(a.name),
-    description = rs.stringOpt(a.description),
-    uri = rs.stringOpt(a.uri),
+    name = rs.string(a.name),
+    description = rs.string(a.description),
+    uri = rs.string(a.uri),
     iconUri = rs.stringOpt(a.iconUri),
     redirectUris = rs.stringOpt(a.redirectUris).map(_.split(",")),
     isWebApp = rs.boolean(a.isWebApp),
@@ -72,6 +76,15 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
 
   private val u = User.u
 
+  def find(id: Long)(implicit session: AsyncDBSession, cxt: EC): Future[Option[App]] = {
+    withSQL {
+      select
+        .from[App](App as a)
+        .leftJoin(User as u).on(a.ownerId, u.id)
+        .where.eq(a.pid, id)
+    }.map(App(a, u)).single.future
+  }
+
   def findForOwner(owner: User)(implicit session: AsyncDBSession, cxt: EC): Future[List[App]] =
     findForOwner(owner.id)
 
@@ -86,7 +99,7 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
   }
 
   def create(owner: User, id: String = UUID.randomUUID().toString, secret: String = UUID.randomUUID().toString,
-             name: String, description: Option[String], uri: Option[String], iconUri: Option[String],
+             name: String, description: String, uri: String, iconUri: Option[String],
              redirectUris: Option[Seq[String]], isWebApp: Boolean, isNativeApp: Boolean, createdAt: DateTime = DateTime.now())
             (implicit session: AsyncDBSession, ctx: EC): Future[App] = {
 
@@ -104,6 +117,20 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
         column.isNativeApp -> isNativeApp,
         column.createdAt -> createdAt
       )
-    }.updateAndReturnGeneratedKey().future.map(App(_, owner.id, Option(owner), id, secret, Some(name), description, uri, iconUri, redirectUris, isWebApp, isNativeApp, createdAt))
+    }.updateAndReturnGeneratedKey().future.map(App(_, owner.id, Option(owner), id, secret, name, description, uri, iconUri, redirectUris, isWebApp, isNativeApp, createdAt))
+  }
+
+  def save(app: App)(implicit session: AsyncDBSession, cxt: EC): Future[App] = {
+    withSQL {
+      update(App).set(
+        column.name -> app.name,
+        column.description -> app.description,
+        column.uri -> app.uri,
+        column.iconUri -> app.iconUri,
+        column.redirectUris -> app.redirectUris.map(_.mkString(",")),
+        column.isWebApp -> app.isWebApp,
+        column.isNativeApp -> app.isNativeApp
+      ).where.eq(column.pid, app.pid)
+    }.update.future.map(_ => app)
   }
 }

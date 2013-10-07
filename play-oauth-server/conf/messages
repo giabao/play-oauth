@@ -28,8 +28,12 @@ application.description = This application is a quick example to illustration th
 
 apps.empty.list = You do not have any applications
 apps.create.first = Create your first app
+apps.create = Create an app
+app.not.found = App not found
 
 app.create.title = Create a new app
+app.id = API Access Key
+app.secret = API Secret Key
 app.isWebApp = A web app
 app.isNativeApp = A native app
 app.name = Name
@@ -45,7 +49,14 @@ app.redirectUris.placeholder = Comma-separated list of URL
 app.redirectUris.help = This field is required if your app is a Web App or a Native App
 app.create.cancel = Cancel and return to your apps
 app.create.submit = Create your app
-create-app.form.has-error = There is {0,choice,1#one errror|1<some errors} !
+create-app.form.has-error = Can''t create this app, there is {0,choice,1#one errror|1<some errors} !
+
+app.edit = Edit this app
+app.edit.title = Edit "{0}"
+app.edit.cancel = Cancel and return to your app
+app.edit.submit = Edit this app
+edit-app.form.has-error = Can''t update this app, there is {0,choice,1#one errror|1<some errors} !
+
 
 error.user.exist = Your already have an account?
 error.user.not.found = User not found

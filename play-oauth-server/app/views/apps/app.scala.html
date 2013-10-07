@@ -1,0 +1,64 @@
+@(app: App)(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+
+@import org.joda.time.format.DateTimeFormat
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+    @part.navbar("app", request.user)
+    <div class="container">
+
+        <div class="row">
+            <div class="col-sm-12 text-right">
+                <a href="@routes.Apps.edit(app.pid).url" class="btn btn"><span class="glyphicon glyphicon-edit"></span> @Messages("app.edit")</a>
+                <a href="@routes.Apps.create.url" class="btn btn"><span class="glyphicon glyphicon-plus"></span> @Messages("apps.create")</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h1 class="app-title"><img src="@app.iconUri" alt="@app.name" class="app-uri pull-left"/> @app.name</h1>
+                <div></div>
+                <p class="hidden-xs">@app.description</p>
+            </div>
+        </div>
+
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <div>
+                            <label class="text-muted">@Messages("app.id")</label>
+                            <p>@app.id</p>
+                        </div>
+                        <div>
+                            <label class="text-muted">@Messages("app.secret")</label>
+                            <p>@app.secret</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 hidden-xs">
+                        <div>
+                            <label class="text-muted">@Messages("app.uri")</label>
+                            <p><a href="@app.uri" title="@app.name" target="_blank">@app.uri</a></p>
+                        </div>
+                        @app.redirectUris.map { uris =>
+                            <div>
+                                <label class="text-muted">@Messages("app.redirectUris")</label>
+                                <p>
+                                @for(uri <- uris){ <a href="@uri" title="@uri" target="_blank">@uri</a> }
+                                </p>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@main("Oauth 2")(c, s)

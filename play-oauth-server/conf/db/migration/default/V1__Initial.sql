@@ -16,8 +16,8 @@ create table app (
   id varchar(100) not null,
   secret varchar(100) not null,
   name varchar(100) not null,
-  description text,
-  uri text,
+  description text not null,
+  uri text not null,
   icon_uri text,
   redirect_uris text, #comma separated uri
   is_web_app boolean not null,

@@ -1,0 +1,22 @@
+@(id: Long)(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+    @part.navbar("app", request.user)
+    <div class="container">
+        <div class="panel panel-default">
+            <div class="panel-body text-center">
+                <h1>404</h1>
+                <p>@Messages("app.not.found", id)</p>
+                <a href="@routes.Apps.list.url" class="btn btn-primary"><span class="glyphicon glyphicon-list"></span> @Messages("apps.link")</a>
+            </div>
+        </div>
+    </div>
+}
+
+@main("Oauth 2")(c, s)

@@ -19,11 +19,17 @@ import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
 
 object Requests {
 
-  val scopeFormatter: Formatter[Seq[String]] = new Formatter[Seq[String]] {
-    def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(" ")))
+  def splitStringFormatter(sep: String): Formatter[Seq[String]] = new Formatter[Seq[String]] {
+    def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(sep)))
     def bind(key: String, data: Map[String, String]): Either[Seq[FormError], Seq[String]] =
-      data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil))))(v => Right(v.split(" ").toSeq))
+      data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil)))){ v =>
+        Right(v.split(sep).toSeq.map(_.trim))
+      }
   }
+
+  val urisFormatter: Formatter[Seq[String]] = splitStringFormatter(",")
+
+  val scopeFormatter: Formatter[Seq[String]] = splitStringFormatter(" ")
 
   val authorizeRequestForm = Form (
     mapping(

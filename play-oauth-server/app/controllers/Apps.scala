@@ -8,12 +8,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.data.Form
 import play.api.data.Forms._
 import fr.njin.playoauth.as.endpoints.Constraints._
-import scala.concurrent.Future
-import play.api.data.format.Formatter
-import play.api.data.validation.{Valid, Invalid, Constraint}
-import org.apache.commons.validator.routines.UrlValidator
-import play.api.data.FormError
 import scala.Some
+import fr.njin.playoauth.as.endpoints.Requests._
+import scala.concurrent.Future
 
 /**
  * User: bathily
@@ -21,13 +18,6 @@ import scala.Some
  */
 object Apps extends Controller {
 
-  val urisFormatter: Formatter[Seq[String]] = new Formatter[Seq[String]] {
-    def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(",")))
-    def bind(key: String, data: Map[String, String]): Either[Seq[FormError], Seq[String]] =
-      data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil)))){ v =>
-        Right(v.split(",").toSeq.map(_.trim))
-      }
-  }
 
   case class AppForm(name: String,
                      description: String,
@@ -36,6 +26,20 @@ object Apps extends Controller {
                      redirectUris: Option[Seq[String]],
                      isWebApp: Boolean,
                      isNativeApp: Boolean)
+
+  object AppForm {
+
+    def apply(app: App): AppForm = AppForm(
+      app.name,
+      app.description,
+      app.uri,
+      app.iconUri,
+      app.redirectUris,
+      app.isWebApp,
+      app.isNativeApp
+    )
+
+  }
 
   val appForm = Form(
     mapping (
@@ -59,41 +63,65 @@ object Apps extends Controller {
     }
   }
 
-  def create = Authenticated.async { implicit request =>
-    AsyncDB.localTx { implicit tx =>
-      App.findForOwner(request.user).map { apps =>
-        Ok(views.html.apps.create(appForm, apps))
-      }
-    }
+  def create = Authenticated { implicit request =>
+    Ok(views.html.apps.create(appForm))
   }
 
   def doCreate = Authenticated.async { implicit request =>
-    AsyncDB.localTx { implicit tx =>
-      appForm.bindFromRequest.fold(f =>
-        App.findForOwner(request.user).map { apps =>
-          BadRequest(views.html.apps.create(f, apps))
-        }, app => {
-          App.create(request.user,
-            name = app.name,
-            description = Some(app.description),
-            uri = Some(app.uri),
-            iconUri = app.iconUri,
-            redirectUris = app.redirectUris,
-            isWebApp = app.isWebApp,
-            isNativeApp = app.isNativeApp
-          ).map { a =>
-            Redirect(routes.Apps.app(a.pid))
-          }
+    appForm.bindFromRequest.fold(f => Future.successful(BadRequest(views.html.apps.create(f))),
+      app => AsyncDB.localTx { implicit tx =>
+        App.create(request.user,
+          name = app.name,
+          description = app.description,
+          uri = app.uri,
+          iconUri = app.iconUri,
+          redirectUris = app.redirectUris,
+          isWebApp = app.isWebApp,
+          isNativeApp = app.isNativeApp
+        ).map { a =>
+          Redirect(routes.Apps.app(a.pid))
         }
-      )
+      }
+    )
+  }
+
+  def app(id: Long) = Authenticated.async { implicit request =>
+    AsyncDB.localTx { implicit tx =>
+      App.find(id).map(_.fold(NotFound(views.html.apps.notfound(id)))(app => {
+        Ok(views.html.apps.app(app))
+      }))
     }
   }
 
-  def app(id: Long) = TODO
+  def edit(id: Long) = Authenticated.async { implicit request =>
+    AsyncDB.localTx { implicit tx =>
+      App.find(id).map(_.fold(NotFound(views.html.apps.notfound(id)))(app => {
+        Ok(views.html.apps.edit(app, appForm.fill(AppForm(app))))
+      }))
+    }
 
-  def edit(id: Long) = TODO
+  }
 
-  def doEdit(id: Long) = TODO
+  def doEdit(id: Long) = Authenticated.async { implicit request =>
+    AsyncDB.localTx { implicit tx =>
+      App.find(id).flatMap(_.fold(Future.successful(NotFound(views.html.apps.notfound(id))))(app => {
+        appForm.bindFromRequest.fold(f => Future.successful(BadRequest(views.html.apps.edit(app, f))),
+          form =>
+            app.copy(
+              name = form.name,
+              description = form.description,
+              uri = form.uri,
+              iconUri = form.iconUri,
+              redirectUris = form.redirectUris,
+              isWebApp = form.isWebApp,
+              isNativeApp = form.isNativeApp
+            ).save.map { a =>
+              Redirect(routes.Apps.app(a.pid))
+            }
+        )
+      }))
+    }
+  }
 
   def delete(id: Long) = TODO
 

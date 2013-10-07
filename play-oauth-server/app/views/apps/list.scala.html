@@ -1,4 +1,6 @@
-@(apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@(apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+
+@import org.joda.time.format.DateTimeFormat
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
@@ -6,29 +8,32 @@
 }
 
 @c = {
-
-    @part.navbar("apps", request.user, Some(apps))
-
+    @part.navbar("apps", request.user)
     <div class="container">
         @if(apps.isEmpty) {
             <div class="panel panel-default">
                 <div class="panel-body text-center">
                     <p>@Messages("apps.empty.list")</p>
-                    <a href="@routes.Apps.create.url" class="btn btn-primary">@Messages("apps.create.first")</a>
+                    <a href="@routes.Apps.create.url" class="btn btn-primary"><span class="glyphicon glyphicon-plus"></span> @Messages("apps.create.first")</a>
                 </div>
             </div>
         } else {
+            <div class="page-header">
+                <a href="@routes.Apps.create.url" class="btn btn-primary pull-right"><span class="glyphicon glyphicon-plus"></span> @Messages("apps.create")</a>
+                <h1>@Messages("apps.link")</h1>
+            </div>
             <div class="list-group">
                 @apps.map { app =>
-                    <a href="#" class="list-group-item active">
-                        <h4 class="list-group-item-heading">@app.name</h4>
-                        <p class="list-group-item-text">@app.description</p>
+                    <a href="@routes.Apps.app(app.pid)" class="list-group-item">
+                        <div class="app-title">
+                            <img src="@app.iconUri" alt="@app.name" class="app-uri pull-left"/><h4 class="list-group-item-heading">@app.name</h4>
+                            <div class="text-muted">@app.uri • @DateTimeFormat.mediumDateTime().withLocale(lang.toLocale).print(app.createdAt)</div>
+                        </div>
+                        <p class="list-group-item-text hidden-xs">@app.description</p>
                     </a>
                 }
             </div>
-
         }
-
     </div>
 }
 
