@@ -25,7 +25,11 @@ case class App(pid: Long,
                isNativeApp: Boolean,
                createdAt: DateTime) extends ShortenedNames {
 
+  val icon = iconUri.getOrElse(controllers.routes.Assets.at("images/default.png").url)
+
   def save()(implicit session: AsyncDBSession, cxt: EC): Future[App] = App.save(this)
+  def destroy()(implicit session: AsyncDBSession, cxt: EC): Future[App] = App.destroy(this)
+
 
   /*
   val redirectUri: Option[String] = redirectUris.flatMap(_.headOption)
@@ -131,6 +135,13 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
         column.isWebApp -> app.isWebApp,
         column.isNativeApp -> app.isNativeApp
       ).where.eq(column.pid, app.pid)
+    }.update.future.map(_ => app)
+  }
+
+  def destroy(app: App)(implicit session: AsyncDBSession, cxt: EC): Future[App] = {
+    withSQL {
+      delete.from(App)
+        .where.eq(column.pid, app.pid)
     }.update.future.map(_ => app)
   }
 }

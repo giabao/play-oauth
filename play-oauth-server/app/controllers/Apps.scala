@@ -11,6 +11,7 @@ import fr.njin.playoauth.as.endpoints.Constraints._
 import scala.Some
 import fr.njin.playoauth.as.endpoints.Requests._
 import scala.concurrent.Future
+import play.api.i18n.Messages
 
 /**
  * User: bathily
@@ -99,7 +100,6 @@ object Apps extends Controller {
         Ok(views.html.apps.edit(app, appForm.fill(AppForm(app))))
       }))
     }
-
   }
 
   def doEdit(id: Long) = Authenticated.async { implicit request =>
@@ -123,8 +123,22 @@ object Apps extends Controller {
     }
   }
 
-  def delete(id: Long) = TODO
+  def delete(id: Long) = Authenticated.async { implicit request =>
+    AsyncDB.localTx { implicit tx =>
+      App.find(id).map(_.fold(NotFound(views.html.apps.notfound(id)))(app => {
+        Ok(views.html.apps.delete(app))
+      }))
+    }
+  }
 
-  def doDelete(id: Long) = TODO
+  def doDelete(id: Long) = Authenticated.async { implicit request =>
+    AsyncDB.localTx { implicit tx =>
+      App.find(id).flatMap(_.fold(Future.successful(NotFound(views.html.apps.notfound(id))))(app => {
+        app.destroy().map(app =>
+          Redirect(routes.Apps.list).flashing("success" -> Messages("flash.app.delete.success", app.name))
+        )
+      }))
+    }
+  }
 
 }

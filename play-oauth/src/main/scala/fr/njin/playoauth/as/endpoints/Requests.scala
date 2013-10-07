@@ -22,7 +22,7 @@ object Requests {
   def splitStringFormatter(sep: String): Formatter[Seq[String]] = new Formatter[Seq[String]] {
     def unbind(key: String, value: Seq[String]): Map[String, String] = Map((key, value.mkString(sep)))
     def bind(key: String, data: Map[String, String]): Either[Seq[FormError], Seq[String]] =
-      data.get(key).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil)))){ v =>
+      data.get(key).filterNot(_.isEmpty).fold[Either[Seq[FormError], Seq[String]]](Left(Seq(FormError(key, "error.required", Nil)))){ v =>
         Right(v.split(sep).toSeq.map(_.trim))
       }
   }

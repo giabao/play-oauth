@@ -1,0 +1,25 @@
+@(app: App)(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+    @part.navbar("app", request.user)
+    <div class="container">
+        <div class="panel panel-default">
+            <div class="panel-body text-center">
+                <h1>@Messages("app.delete.confirm.title")</h1>
+                <p>@Messages("app.delete.confirm", app.name)</p>
+                @helper.form(action = routes.Apps.doDelete(app.pid), 'class -> "form-horizontal") {
+                    <a href="@routes.Apps.app(app.pid)" class="btn btn-block btn-success" title="@Messages("app.delete.cancel")">@Messages("app.delete.cancel")</a>
+                    <button class="btn btn-danger btn-block"><span class="glyphicon glyphicon-warning-sign"></span> @Messages("app.delete.submit")</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@main(Messages("app.delete.confirm.title"))(c, s)

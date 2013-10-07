@@ -18,7 +18,7 @@ GET         /apps/$id<[0-9]>                controllers.Apps.app(id: Long)
 GET         /apps/$id<[0-9]>/edit           controllers.Apps.edit(id: Long)
 POST        /apps/$id<[0-9]>/edit           controllers.Apps.doEdit(id: Long)
 GET         /apps/$id<[0-9]>/delete         controllers.Apps.delete(id: Long)
-POST        /apps/$id<[0-9]>/doDelete       controllers.Apps.doDelete(id: Long)
+POST        /apps/$id<[0-9]>/delete         controllers.Apps.doDelete(id: Long)
 
 
 GET         /authz               controllers.Authorization.authz

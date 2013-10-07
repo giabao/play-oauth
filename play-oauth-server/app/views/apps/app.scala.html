@@ -13,14 +13,14 @@
 
         <div class="row">
             <div class="col-sm-12 text-right">
-                <a href="@routes.Apps.edit(app.pid).url" class="btn btn"><span class="glyphicon glyphicon-edit"></span> @Messages("app.edit")</a>
+                <a href="@routes.Apps.edit(app.pid).url" class="btn btn"><span class="glyphicon glyphicon-edit"></span> @Messages("app.edit.or.delete")</a>
                 <a href="@routes.Apps.create.url" class="btn btn"><span class="glyphicon glyphicon-plus"></span> @Messages("apps.create")</a>
             </div>
         </div>
 
         <div class="row">
             <div class="col-sm-12">
-                <h1 class="app-title"><img src="@app.iconUri" alt="@app.name" class="app-uri pull-left"/> @app.name</h1>
+                <h1 class="app-title"><img src="@app.icon" alt="@app.name" class="app-uri pull-left"/> @app.name</h1>
                 <div></div>
                 <p class="hidden-xs">@app.description</p>
             </div>
@@ -61,4 +61,4 @@
     </div>
 }
 
-@main("Oauth 2")(c, s)
+@main(app.name)(c, s)

@@ -10,6 +10,7 @@
     @part.navbar("apps", request.user)
 
     <div class="container">
+        <a class="btn btn-sm btn-danger pull-right app-delete" href="@routes.Apps.delete(app.pid).url">@Messages("app.delete.link")</a>
         <h3>@Messages("app.edit.title", app.name)</h3>
         <div class="panel panel-default">
             <div class="panel-body">

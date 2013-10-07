@@ -31,6 +31,8 @@ apps.create.first = Create your first app
 apps.create = Create an app
 app.not.found = App not found
 
+apps.list.title = Your apps
+
 app.create.title = Create a new app
 app.id = API Access Key
 app.secret = API Secret Key
@@ -52,11 +54,17 @@ app.create.submit = Create your app
 create-app.form.has-error = Can''t create this app, there is {0,choice,1#one errror|1<some errors} !
 
 app.edit = Edit this app
+app.edit.or.delete = Edit or Delete this app
 app.edit.title = Edit "{0}"
 app.edit.cancel = Cancel and return to your app
+app.delete.link = Delete this app
 app.edit.submit = Edit this app
 edit-app.form.has-error = Can''t update this app, there is {0,choice,1#one errror|1<some errors} !
 
+app.delete.confirm.title = Do you really want to delete?
+app.delete.confirm = You are about to delete "{0}", please confirm !
+app.delete.cancel = No, Bring me back to the app
+app.delete.submit = Yes, Delete this app
 
 error.user.exist = Your already have an account?
 error.user.not.found = User not found
@@ -65,3 +73,5 @@ error.redirectUri.required = Please provide a callback URL if your app is a Web 
 
 error.uri = This field must be a valid url
 error.uris = {0,choice,1#The following url is|1<The following urls are} not valid : {1}
+
+flash.app.delete.success = App "{0}" successfully deleted!

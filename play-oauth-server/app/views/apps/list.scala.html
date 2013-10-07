@@ -26,7 +26,7 @@
                 @apps.map { app =>
                     <a href="@routes.Apps.app(app.pid)" class="list-group-item">
                         <div class="app-title">
-                            <img src="@app.iconUri" alt="@app.name" class="app-uri pull-left"/><h4 class="list-group-item-heading">@app.name</h4>
+                            <img src="@app.icon" alt="@app.name" class="app-uri pull-left"/><h4 class="list-group-item-heading">@app.name</h4>
                             <div class="text-muted">@app.uri • @DateTimeFormat.mediumDateTime().withLocale(lang.toLocale).print(app.createdAt)</div>
                         </div>
                         <p class="list-group-item-text hidden-xs">@app.description</p>
@@ -37,4 +37,4 @@
     </div>
 }
 
-@main("Oauth 2")(c, s)
+@main(Messages("apps.list.title"))(c, s)

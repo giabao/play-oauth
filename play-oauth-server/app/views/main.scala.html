@@ -1,4 +1,4 @@
-@(title: String)(content: Html, styles: Html = Html(""), scripts: Html = Html(""))
+@(title: String)(content: Html, styles: Html = Html(""), scripts: Html = Html(""))(implicit request: RequestHeader)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -23,6 +23,16 @@
     </head>
 
     <body>
+
+        @request.flash.get("success").map { message =>
+            <div class="container">
+                <div class="alert alert-success alert-dismissable">
+                    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+                    @message
+                </div>
+            </div>
+
+        }
 
         @content
 
