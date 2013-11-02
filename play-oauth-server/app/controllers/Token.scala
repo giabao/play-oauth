@@ -3,41 +3,29 @@ package controllers
 import play.api.mvc._
 import scalikejdbc.async.AsyncDBSession
 import scala.concurrent.{Future, ExecutionContext}
-import fr.njin.playoauth.as.endpoints.{SecretKeyClientAuthentication, ClientAuthentication, TokenEndpoint}
-import fr.njin.playoauth.common.domain.{OauthClientRepository, BasicOauthScope}
+import fr.njin.playoauth.as.endpoints.{SecretKeyClientAuthentication, TokenEndpoint}
+import fr.njin.playoauth.common.domain.BasicOauthScope
 import models._
 import domain.DB._
 import models.AuthToken
 import fr.njin.playoauth.as.OauthError
 import fr.njin.playoauth.common.OAuth
-import domain._
 import play.api.i18n.Messages
+import domain.oauth2._
+import play.api.mvc.AnyContentAsFormUrlEncoded
+import scala.Some
 
 object Token extends Controller {
 
   def token = InTx { implicit tx =>
     Action.async(parse.urlFormEncoded.map(new AnyContentAsFormUrlEncoded(_))) { request =>
-      val endpoint = new TokenEndpointController()
-      endpoint.token(endpoint.perform(
+      new TokenEndpointController().token(
         (u,p) => User.findByEmail(u).map(_.filter(_.passwordMatch(p))),
         app => Future.successful(app.owner)
-      )).apply(request)
+      ).apply(request)
     }
   }
 
-}
-
-trait AppAuthentication extends SecretKeyClientAuthentication[App] {
-
-  def repository: OauthClientRepository[App]
-
-  def authenticate(id: String, secret: String): Future[Either[Option[App], OauthError]] =
-    repository.find(id).map(_.fold[Either[Option[App], OauthError]](Left(None)) { app =>
-      if(app.secret == secret)
-        Left(Some(app))
-      else
-        Right(OauthError.InvalidClientError(Some(Messages(OAuth.ErrorClientCredentialsDontMatch))))
-    })
 }
 
 class TokenEndpointController(implicit val session:AsyncDBSession, ec: ExecutionContext)
@@ -48,7 +36,15 @@ class TokenEndpointController(implicit val session:AsyncDBSession, ec: Execution
     new AuthCodeRepository(),
     new AuthTokenFactory(),
     new AuthTokenRepository()
-  ) with AppAuthentication {
+  ) with SecretKeyClientAuthentication[App] {
 
-  def repository: OauthClientRepository[App] = new AppRepository()
+
+  def authenticate(id: String, secret: String): Future[Either[Option[App], OauthError]] =
+    clientRepository.find(id).map(_.fold[Either[Option[App], OauthError]](Left(None)) { app =>
+      if(app.secret == secret)
+        Left(Some(app))
+      else
+        Right(OauthError.InvalidClientError(Some(Messages(OAuth.ErrorClientCredentialsDontMatch))))
+    })
+
 }

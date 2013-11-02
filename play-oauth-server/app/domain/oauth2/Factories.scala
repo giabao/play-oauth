@@ -1,4 +1,4 @@
-package domain
+package domain.oauth2
 
 import fr.njin.playoauth.common.domain._
 import java.util.UUID

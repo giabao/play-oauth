@@ -6,7 +6,6 @@ import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
 import play.api.i18n.Messages
 import fr.njin.playoauth.common.domain._
-import fr.njin.playoauth.common
 import scala.Predef._
 import scala.Some
 import play.api.mvc.SimpleResult
@@ -16,21 +15,24 @@ import fr.njin.playoauth.as.OauthError
 import OauthError._
 import fr.njin.playoauth.common.request.AuthzRequest
 import Requests._
+import play.api.Logger
 
 /**
  * User: bathily
  * Date: 17/09/13
  */
-class AuthorizationEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
-  permissions: OauthResourceOwnerPermission[RO, T, P],
-  clientRepository: OauthClientRepository[T],
-  scopeRepository: OauthScopeRepository[SC],
-  codeFactory: OauthCodeFactory[CO, RO, P, T],
-  codeRepository: OauthCodeRepository[CO, RO, P, T],
-  tokenFactory: OauthTokenFactory[TO, RO, P, T],
-  tokenRepository: OauthTokenRepository[TO, RO, P, T],
-  supportedResponseType: Seq[String] = OAuth.ResponseType.All
-) extends common.Logger {
+trait Authorization[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]] {
+
+  val logger:Logger = AuthorizationEndpoint.logger
+
+  def permissions: OauthResourceOwnerPermission[RO, T, P]
+  def clientRepository: OauthClientRepository[T]
+  def scopeRepository: OauthScopeRepository[SC]
+  def codeFactory: OauthCodeFactory[CO, RO, P, T]
+  def codeRepository: OauthCodeRepository[CO, RO, P, T]
+  def tokenFactory: OauthTokenFactory[TO, RO, P, T]
+  def tokenRepository: OauthTokenRepository[TO, RO, P, T]
+  def supportedResponseType: Seq[String]
 
   type AuthzValidation =  (AuthzRequest, T) => ExecutionContext => Future[Option[Map[String, Seq[String]]]]
 
@@ -95,6 +97,14 @@ class AuthorizationEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[
     }}
   }
 
+  def authorize(owner:(RequestHeader) => Option[RO])
+               (onUnauthenticated:(AuthzRequest, T) => RequestHeader => Future[SimpleResult],
+                onUnauthorized:(AuthzRequest, T) => RequestHeader => Future[SimpleResult])
+               (implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult] =
+
+    authorize(perform(owner)(onUnauthenticated, onUnauthorized))
+
+
   def authorize(f:(AuthzRequest, T) => RequestHeader => Future[SimpleResult])(implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult] = implicit request => {
 
     val query = request.queryString
@@ -155,4 +165,19 @@ class AuthorizationEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[
     Future.successful(Redirect(url, queryWithState(AccessDeniedError(), authzRequest.state), FOUND))
   }
 
+}
+
+class AuthorizationEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
+  val permissions: OauthResourceOwnerPermission[RO, T, P],
+  val clientRepository: OauthClientRepository[T],
+  val scopeRepository: OauthScopeRepository[SC],
+  val codeFactory: OauthCodeFactory[CO, RO, P, T],
+  val codeRepository: OauthCodeRepository[CO, RO, P, T],
+  val tokenFactory: OauthTokenFactory[TO, RO, P, T],
+  val tokenRepository: OauthTokenRepository[TO, RO, P, T],
+  val supportedResponseType: Seq[String] = OAuth.ResponseType.All
+) extends Authorization[T, SC, CO, RO, P, TO]
+
+object AuthorizationEndpoint {
+  val logger:Logger = Logger(getClass)
 }

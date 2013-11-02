@@ -6,7 +6,6 @@ import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
 import play.api.i18n.Messages
 import fr.njin.playoauth.common.domain._
-import fr.njin.playoauth.common
 import scala.Predef._
 import Results._
 import fr.njin.playoauth.as.OauthError
@@ -49,17 +48,19 @@ trait SecretKeyClientAuthentication[T <: OauthClient] extends ClientAuthenticati
 
 }
 
-class TokenEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
-  clientRepository: OauthClientRepository[T],
-  scopeRepository: OauthScopeRepository[SC],
-  codeFactory: OauthCodeFactory[CO, RO, P, T],
-  codeRepository: OauthCodeRepository[CO, RO, P, T],
-  tokenFactory: OauthTokenFactory[TO, RO, P, T],
-  tokenRepository: OauthTokenRepository[TO, RO, P, T],
-  supportedGrantType: Seq[String] = OAuth.GrantType.All
-) extends common.Logger {
+trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]] {
 
   this: ClientAuthentication[T] =>
+
+  val logger:Logger = TokenEndpoint.logger
+
+  def clientRepository: OauthClientRepository[T]
+  def scopeRepository: OauthScopeRepository[SC]
+  def codeFactory: OauthCodeFactory[CO, RO, P, T]
+  def codeRepository: OauthCodeRepository[CO, RO, P, T]
+  def tokenFactory: OauthTokenFactory[TO, RO, P, T]
+  def tokenRepository: OauthTokenRepository[TO, RO, P, T]
+  def supportedGrantType: Seq[String]
 
   type TokenValidation =  (TokenRequest, T) => ExecutionContext => Future[Option[OauthError]]
   type CodeValidation =  (TokenRequest, T, CO) => ExecutionContext => Future[Option[OauthError]]
@@ -132,6 +133,10 @@ class TokenEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T
 
   }
 
+  def token(owner: (String, String) => Future[Option[RO]], clientOwner: T => Future[Option[RO]])
+           (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+    token(perform(owner, clientOwner))
+
   def token(f:(TokenRequest, T) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] = implicit request => {
 
     val query = request.body.data
@@ -197,4 +202,20 @@ class TokenEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
     }
+}
+
+class TokenEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
+  val clientRepository: OauthClientRepository[T],
+  val scopeRepository: OauthScopeRepository[SC],
+  val codeFactory: OauthCodeFactory[CO, RO, P, T],
+  val codeRepository: OauthCodeRepository[CO, RO, P, T],
+  val tokenFactory: OauthTokenFactory[TO, RO, P, T],
+  val tokenRepository: OauthTokenRepository[TO, RO, P, T],
+  val supportedGrantType: Seq[String] = OAuth.GrantType.All
+) extends Token[T, SC, CO, RO, P, TO] {
+  this: ClientAuthentication[T] =>
+}
+
+object TokenEndpoint {
+  val logger:Logger = Logger(getClass)
 }

@@ -63,12 +63,12 @@ trait Endpoint extends Scope {
   def userByUsername: (String, String) => Future[Option[User]] = (u,p) => Future.successful(user.filter(user => user.username == u && user.password == p))
   def userOfClient: BasicOauthClient => Future[Option[User]] = client => Future.successful(Some(User(client.id, client.id, Map.empty)))
 
-  def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(authzEndpoint.perform(r => user)(
+  def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(r => user)(
     (ar,c) => r => Future.successful(Results.Unauthorized("")),
     (ar,c) => r => Future.successful(Results.Forbidden(""))
-  ))(ec)
+  )(ec)
 
-  def token(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]) = tokenEndpoint.token(tokenEndpoint.perform(userByUsername, userOfClient))(ec, writes, errorWrites)
+  def token(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]) = tokenEndpoint.token(userByUsername, userOfClient)(ec, writes, errorWrites)
 }
 
 trait EndPointWithClients extends Endpoint {

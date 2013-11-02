@@ -17,6 +17,8 @@ import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.AuthzRequest
 import scala.Some
 import play.api.libs.iteratee.{Done, Input, Iteratee}
+import domain.oauth2._
+import scala.Some
 
 /**
  * User: bathily
@@ -43,14 +45,13 @@ object Authorization extends Controller {
   def authz(permission:Option[Long]) = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
       EssentialAction { request =>
-        val oauth2 = new AuthorizationEndpointController(permission)
         Iteratee.flatten(
-          oauth2.authorize(oauth2.perform( _ => Some(user))(
+          new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
             (ar, c) => implicit r => Future.failed(new Exception()),
             (ar, c) => implicit r => {
               Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scope, ar.redirectUri, ar.state)))))
             }
-          )).apply(request).map(Done(_, Input.Empty))
+          ).apply(request).map(Done(_, Input.Empty))
         )
       }
     }

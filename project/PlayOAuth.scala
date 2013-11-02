@@ -86,13 +86,6 @@ object PlayOAuthBuild extends Build {
     settings = buildSettings ++ Seq(
       resolvers := commonResolvers,
       libraryDependencies ++= commonDependencies ++ Seq(
-        "org.slf4j" % "slf4j-api" % "1.7.5",
-        "org.slf4j" % "jul-to-slf4j" % "1.7.5",
-        "org.slf4j" % "jcl-over-slf4j" % "1.7.5",
-
-        "ch.qos.logback" % "logback-core" % "1.0.13",
-        "ch.qos.logback" % "logback-classic" % "1.0.13",
-
         "com.typesafe.play" %% "play-json" % "2.2.0"
       ),
       testOptions += setupForSLF4J
