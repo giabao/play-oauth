@@ -1,6 +1,6 @@
-package fr.njin.playoauth.as
+package fr.njin.playoauth
 
-import play.api.mvc.{AnyContent, Request}
+import play.api.mvc.{RequestHeader, AnyContent, Request}
 import org.apache.commons.codec.binary.Base64
 
 
@@ -19,7 +19,7 @@ object Utils {
     }.getOrElse("")
   }
 
-  def parseBasicAuth(request: Request[AnyContent]): Option[(String, String)] = {
+  def parseBasicAuth(request: RequestHeader): Option[(String, String)] = {
     request.headers.get("Authorization").flatMap { authorization =>
       authorization.split(" ").drop(1).headOption.flatMap { encoded =>
         new String(Base64.decodeBase64(encoded.getBytes)).split(":").toList match {
@@ -27,6 +27,12 @@ object Utils {
           case _ => None
         }
       }
+    }
+  }
+
+  def parseBearer(request: RequestHeader): Option[String] = {
+    request.headers.get("Authorization").flatMap { authorization =>
+      authorization.split(" ").drop(1).headOption
     }
   }
 

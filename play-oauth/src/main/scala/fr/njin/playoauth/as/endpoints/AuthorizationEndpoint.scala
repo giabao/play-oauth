@@ -16,6 +16,7 @@ import OauthError._
 import fr.njin.playoauth.common.request.AuthzRequest
 import Requests._
 import play.api.Logger
+import fr.njin.playoauth.Utils
 
 /**
  * User: bathily
@@ -146,7 +147,7 @@ trait Authorization[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T
   }
 
   def authzAccept(token:TO): (AuthzRequest, T) => RequestHeader => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
-    import fr.njin.playoauth.as.Utils.toUrlFragment
+    import Utils.toUrlFragment
 
     val url = authzRequest.redirectUri.orElse( oauthClient.redirectUri).get
     Future.successful(Redirect(url + toUrlFragment(

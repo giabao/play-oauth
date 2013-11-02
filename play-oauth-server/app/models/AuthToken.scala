@@ -46,8 +46,12 @@ object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
   def apply(t: SyntaxProvider[AuthToken], p: SyntaxProvider[Permission])(rs: WrappedResultSet): AuthToken =
     apply(t)(rs).copy(permission = Some(Permission(p)(rs)))
 
+  def apply(t: SyntaxProvider[AuthToken], p: SyntaxProvider[Permission], u: SyntaxProvider[User])(rs: WrappedResultSet): AuthToken =
+    apply(t)(rs).copy(permission = Some(Permission(p)(rs).copy(user = Some(User(u)(rs)))))
+
   lazy val t = AuthToken.syntax("t")
   private val p = Permission.p
+  private val u = User.u
 
   def create(permission: Permission,
              value: String, tokenType: String, refreshToken: String,
@@ -92,9 +96,10 @@ object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
       select
         .from(AuthToken as t)
           .innerJoin(Permission as p).on(t.permissionId, p.id)
+          .innerJoin(User as u).on(p.userId, u.id)
         .where
           .eq(t.value, value)
-    }.map(AuthToken(t, p)).single().future()
+    }.map(AuthToken(t, p, u)).single().future()
 
   def findForRefreshToken(value: String)(implicit session: AsyncDBSession, cxt: EC): Future[Option[AuthToken]] =
     withSQL {

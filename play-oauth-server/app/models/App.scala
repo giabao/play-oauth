@@ -1,6 +1,6 @@
 package models
 
-import fr.njin.playoauth.common.domain.{BasicOauthClient, OauthClient}
+import fr.njin.playoauth.common.domain.OauthClient
 import org.joda.time.DateTime
 import scalikejdbc._, async._, SQLInterpolation._
 import scala.concurrent.Future

@@ -4,6 +4,9 @@ import scalikejdbc._, async._, FutureImplicits._, SQLInterpolation._
 import scala.concurrent.Future
 import fr.njin.playoauth.common.domain.OauthResourceOwner
 import play.api.libs.Crypto
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+
 
 /**
  * User: bathily
@@ -25,6 +28,13 @@ case class User(id:Long,
 }
 
 object User extends SQLSyntaxSupport[User] with ShortenedNames {
+
+  implicit val writes: Writes[User] = (
+    (__ \ "id").write[Long] ~
+    (__ \ "email").write[String] ~
+    (__ \ "firstName").write[String] ~
+    (__ \ "lastName").write[String]
+  )(user => (user.id, user.email, user.firstName, user.lastName))
 
   override val tableName = "users"
   override val columnNames = Seq("id", "email", "password", "first_name", "last_name")

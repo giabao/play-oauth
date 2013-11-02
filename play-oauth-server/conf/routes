@@ -28,6 +28,7 @@ POST        /oauth2/token                  controllers.Token.token
 GET         /user/profile                  controllers.Users.profile
 GET         /user/apps                     controllers.Users.apps
 
+GET         /api/user                      controllers.API.user
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                  controllers.Assets.at(path="/public", file)
