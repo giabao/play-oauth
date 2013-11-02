@@ -1,4 +1,4 @@
-@(form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@(form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
@@ -21,7 +21,7 @@
                     </div>
                 }
 
-                @appForm(form)
+                @appForm(form)(request.user, request, lang)
 
                 <a class="btn btn-lg btn-default btn-block" href="@routes.Apps.list.url">@Messages("app.create.cancel")</a>
                 <button class="btn btn-lg btn-primary btn-block" type="submit">@Messages("app.create.submit")</button>

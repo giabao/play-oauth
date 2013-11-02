@@ -1,4 +1,4 @@
-@(app: App, form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@(app: App, form: Form[controllers.Apps.AppForm])(implicit user: User, request: RequestHeader, lang: Lang)
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
@@ -7,7 +7,7 @@
 
 @c = {
 
-    @part.navbar("apps", request.user)
+    @part.navbar("apps", user)
 
     <div class="container">
         <a class="btn btn-sm btn-danger pull-right app-delete" href="@routes.Apps.delete(app.pid).url">@Messages("app.delete.link")</a>

@@ -1,4 +1,4 @@
-@(form: Form[controllers.Apps.AppForm])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@(form: Form[controllers.Apps.AppForm])(implicit user: User, request: RequestHeader, lang: Lang)
 
 @input(field:Field)(inputCreator: Field => Html)(help: Html = Html("")) = {
     <div class="form-group @{"has-error".when(field.hasErrors)}">

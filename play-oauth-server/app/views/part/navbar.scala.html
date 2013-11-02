@@ -21,7 +21,8 @@
                 <li class="dropdown @{"active".when(id == "profile")}">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">@user.name <b class="caret"></b></a>
                     <ul class="dropdown-menu">
-                        <li><a href="@routes.Users.profile.url">@Messages("profile.link")</a></li>
+                        <li><a href="@routes.Users.apps.url">@Messages("user.apps.link")</a></li>
+                        <li><a href="@routes.Users.profile.url">@Messages("user.profile.link")</a></li>
                         <li><a href="@routes.Application.logout.url">@Messages("logout.link")</a></li>
                     </ul>
                 </li>

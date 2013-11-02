@@ -2,18 +2,26 @@ package models
 
 import scalikejdbc._, async._, FutureImplicits._, SQLInterpolation._
 import scala.concurrent.Future
+import fr.njin.playoauth.common.domain.OauthResourceOwner
+import play.api.libs.Crypto
 
 /**
  * User: bathily
  * Date: 01/10/13
  */
-case class User(id:Long, email: String, password: String, firstName: String, lastName: String) extends ShortenedNames {
+
+case class User(id:Long,
+                email: String,
+                password: String,
+                firstName: String,
+                lastName: String) extends ShortenedNames with OauthResourceOwner {
 
   val name = firstName+" "+lastName
 
   def save(implicit session: AsyncDBSession, ctx: EC): Future[User] = User.save(this)(session, ctx)
   def delete(implicit session: AsyncDBSession, ctx: EC): Future[Unit] = User.destroy(id)(session, ctx)
 
+  def passwordMatch(candidate:String): Boolean = password == Crypto.encryptAES(candidate)
 }
 
 object User extends SQLSyntaxSupport[User] with ShortenedNames {
@@ -51,14 +59,17 @@ object User extends SQLSyntaxSupport[User] with ShortenedNames {
 
   def create(email: String, password: String, firstName: String, lastName: String)
             (implicit session: AsyncDBSession, ctx: EC): Future[User] = {
+
+    val encryptedPassword: String = Crypto.encryptAES(password)
+
     withSQL {
       insert.into(User).namedValues(
         column.email -> email,
-        column.password -> password,
+        column.password -> encryptedPassword,
         column.firstName -> firstName,
         column.lastName -> lastName
       )
-    }.updateAndReturnGeneratedKey().future.map(User(_, email, password, firstName, lastName))
+    }.updateAndReturnGeneratedKey().future.map(User(_, email, encryptedPassword, firstName, lastName))
   }
 
   def save(u: User)(implicit session: AsyncDBSession, ctx: EC): Future[User] = {

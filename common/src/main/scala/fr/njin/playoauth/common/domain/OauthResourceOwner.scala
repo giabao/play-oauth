@@ -1,7 +1,9 @@
 package fr.njin.playoauth.common.domain
 
+import scala.concurrent.Future
 
-trait OauthResourceOwner[C <: OauthClient, P <: OauthPermission[C]] {
-  def permission(client: C): Option[P]
-}
 
+trait OauthResourceOwner
+
+trait OauthResourceOwnerPermission[RO <: OauthResourceOwner, C <: OauthClient, P <: OauthPermission[C]]
+  extends ((RO, C) => Future[Option[P]])

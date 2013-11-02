@@ -35,11 +35,44 @@ create table permission (
   id bigint not null auto_increment,
   user_id bigint not null,
   app_id bigint not null,
+  decision boolean not null,
   scope text, #white space separated string
   redirect_uri text,
+  state text,
   created_at datetime not null,
   revoked_at datetime,
-  constraint pk_app primary key (id),
+  constraint pk_permission primary key (id),
   constraint fk_permission_user foreign key (user_id) references users (id) on delete cascade,
   constraint fk_permission_app foreign key (app_id) references app (pid) on delete cascade
 );
+
+create table auth_code (
+  id bigint not null auto_increment,
+  value varchar(100) not null,
+  permission_id bigint not null,
+  scopes text, #white space separated string
+  redirect_uri text,
+  created_at datetime not null,
+  revoked_at datetime,
+  constraint pk_auth_code primary key (id),
+  constraint fk_auth_code_permission foreign key (permission_id) references permission (id) on delete cascade
+);
+
+create index idx_auth_code_value on auth_code (value);
+
+create table auth_token (
+  id bigint not null auto_increment,
+  value varchar(100) not null,
+  token_type varchar(100) not null,
+  lifetime bigint not null,
+  refresh_token varchar(100),
+  permission_id bigint not null,
+  created_at datetime not null,
+  revoked_at datetime,
+  constraint pk_auth_token primary key (id),
+  constraint fk_auth_token_permission foreign key (permission_id) references permission (id) on delete cascade
+);
+
+create index idx_auth_token_value on auth_token (value);
+create index idx_auth_token_token_type on auth_token (token_type);
+create index idx_auth_token_refresh_token on auth_token (refresh_token);

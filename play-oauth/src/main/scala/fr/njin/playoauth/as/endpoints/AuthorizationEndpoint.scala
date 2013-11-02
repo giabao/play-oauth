@@ -7,7 +7,6 @@ import fr.njin.playoauth.common.OAuth
 import play.api.i18n.Messages
 import fr.njin.playoauth.common.domain._
 import fr.njin.playoauth.common
-import scala.util.Either
 import scala.Predef._
 import scala.Some
 import play.api.mvc.SimpleResult
@@ -22,8 +21,8 @@ import Requests._
  * User: bathily
  * Date: 17/09/13
  */
-class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner[T, P], P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
-  clientFactory: OauthClientFactory[I , T],
+class AuthorizationEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
+  permissions: OauthResourceOwnerPermission[RO, T, P],
   clientRepository: OauthClientRepository[T],
   scopeRepository: OauthScopeRepository[SC],
   codeFactory: OauthCodeFactory[CO, RO, P, T],
@@ -63,15 +62,7 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   def queryWithState(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
      state.map(s => query + (OAuth.OauthState -> Seq(s))).getOrElse(query)
 
-  def register(allowedResponseType: Seq[String], allowedGrantType: Seq[String], info:I)(implicit ec:ExecutionContext): Future[T] = {
-    clientFactory.apply(allowedResponseType, allowedGrantType, info).flatMap(clientRepository.save)
-  }
-
-  def deRegister(client:T)(implicit ec:ExecutionContext): Future[Unit] = {
-    clientRepository.delete(client)
-  }
-
-  def onFormError(f:Form[AuthzRequest])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
+  def onFormError(f:Form[AuthzRequest])(implicit request:RequestHeader, ec:ExecutionContext) = {
     f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
       .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
       .getOrElse {
@@ -93,61 +84,58 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
     }
   }
 
-  def onAuthzRequest(authzRequest: AuthzRequest)(f:(AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit request:Request[AnyContent], ec:ExecutionContext) = {
+  def onAuthzRequest(authzRequest: AuthzRequest)(f:(AuthzRequest, T) => RequestHeader => Future[SimpleResult])(implicit request:RequestHeader, ec:ExecutionContext) = {
     clientRepository.find(authzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
       authzRequest.redirectUri.orElse(client.redirectUri).fold(Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIMissing)))) { url =>
-        Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap(_ match {
+        Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap {
           case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
           case _ => f(authzRequest, client)(request)
-        })
+        }
       }
     }}
   }
 
-  def authorize(f:(AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult])(implicit ec:ExecutionContext) =
-    Action.async { implicit request =>
+  def authorize(f:(AuthzRequest, T) => RequestHeader => Future[SimpleResult])(implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult] = implicit request => {
 
-      val form = authorizeRequestForm.bindFromRequest
+    val query = request.queryString
+    val form = authorizeRequestForm.bindFromRequest(query)
 
-      Option(request.queryString.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
-        form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-      }.getOrElse(form).fold(onFormError, onAuthzRequest(_)(f))
+    Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
+      form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
+    }.getOrElse(form).fold(onFormError, onAuthzRequest(_)(f))
 
-    }
+  }
 
-  def perform(owner:(Request[AnyContent]) => Option[RO])
-               (onUnauthenticated:(AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult],
-                onUnauthorized:(AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult])
-               (implicit ec:ExecutionContext): (AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+  def perform(owner:(RequestHeader) => Option[RO])
+               (onUnauthenticated:(AuthzRequest, T) => RequestHeader => Future[SimpleResult],
+                onUnauthorized:(AuthzRequest, T) => RequestHeader => Future[SimpleResult])
+               (implicit ec:ExecutionContext): (AuthzRequest, T) => RequestHeader => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
     owner(request).fold(onUnauthenticated(authzRequest, oauthClient)(request)) { resourceOwner =>
-      resourceOwner.permission(oauthClient).fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
+      permissions(resourceOwner, oauthClient).flatMap(_.fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
         if(permission.authorized(authzRequest))
-          codeFactory.apply(resourceOwner, oauthClient, authzRequest.redirectUri, authzRequest.scope)
-            .flatMap(codeRepository.save)
+          codeFactory(resourceOwner, oauthClient, authzRequest.redirectUri, authzRequest.scope)
             .flatMap { code =>
               authzRequest.responseType match {
                 case OAuth.ResponseType.Code =>
                   authzAccept(code)(authzRequest, oauthClient)(request)
                 case OAuth.ResponseType.Token =>
-                  tokenFactory(code.owner, code.client, authzRequest.redirectUri, code.scopes).flatMap {
-                    tokenRepository.save(_).flatMap { token =>
-                      authzAccept(token)(authzRequest, oauthClient)(request)
-                    }
+                  tokenFactory(code.owner, code.client, authzRequest.redirectUri, code.scopes).flatMap { token =>
+                    authzAccept(token)(authzRequest, oauthClient)(request)
                   }
               }
             }
         else
           authzDeny(authzRequest, oauthClient)(request)
-      }
+      })
     }
   }
 
-  def authzAccept(code:CO): (AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+  def authzAccept(code:CO): (AuthzRequest, T) => RequestHeader => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
     val url = authzRequest.redirectUri.orElse( oauthClient.redirectUri).get
     Future.successful(Redirect(url, queryWithState(Map(OAuth.OauthCode -> Seq(code.value)), authzRequest.state), FOUND))
   }
 
-  def authzAccept(token:TO): (AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+  def authzAccept(token:TO): (AuthzRequest, T) => RequestHeader => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
     import fr.njin.playoauth.as.Utils.toUrlFragment
 
     val url = authzRequest.redirectUri.orElse( oauthClient.redirectUri).get
@@ -162,7 +150,7 @@ class AuthzEndpoint[I <: OauthClientInfo,T <: OauthClient, SC <: OauthScope, CO 
   }
 
 
-  def authzDeny: (AuthzRequest, T) => Request[AnyContent] => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
+  def authzDeny: (AuthzRequest, T) => RequestHeader => Future[SimpleResult] = (authzRequest, oauthClient) => implicit request => {
     val url = oauthClient.redirectUri.orElse(authzRequest.redirectUri).get
     Future.successful(Redirect(url, queryWithState(AccessDeniedError(), authzRequest.state), FOUND))
   }

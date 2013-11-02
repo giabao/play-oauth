@@ -1,16 +1,17 @@
 package models
 
-import fr.njin.playoauth.common.domain.OauthClient
+import fr.njin.playoauth.common.domain.{BasicOauthClient, OauthClient}
 import org.joda.time.DateTime
-import fr.njin.playoauth.common.OAuth
 import scalikejdbc._, async._, SQLInterpolation._
 import scala.concurrent.Future
 import java.util.UUID
+import fr.njin.playoauth.common.OAuth
 
 /**
  * User: bathily
  * Date: 01/10/13
  */
+
 case class App(pid: Long,
                ownerId: Long,
                owner: Option[User] = None,
@@ -23,7 +24,7 @@ case class App(pid: Long,
                redirectUris: Option[Seq[String]],
                isWebApp: Boolean,
                isNativeApp: Boolean,
-               createdAt: DateTime) extends ShortenedNames {
+               createdAt: DateTime) extends ShortenedNames with OauthClient {
 
   val icon = iconUri.getOrElse(controllers.routes.Assets.at("images/default.png").url)
 
@@ -31,23 +32,18 @@ case class App(pid: Long,
   def destroy()(implicit session: AsyncDBSession, cxt: EC): Future[App] = App.destroy(this)
 
 
-  /*
   val redirectUri: Option[String] = redirectUris.flatMap(_.headOption)
-  val clientUri: Option[String] = uri
 
   val authorized: Boolean = true
 
-  val allowedResponseType: Seq[String] = (isWebApp, isNativeApp) match {
-    case (true, true) => OAuth.ResponseType.All
-    case (true, false) => Seq(OAuth.ResponseType.Code)
-    case (false, true) => Seq(OAuth.ResponseType.Token)
-    case _  => Seq.empty
-  }
+  val allowedResponseType: Seq[String] = (isWebApp || isNativeApp match {
+    case true => Seq(OAuth.ResponseType.Token)
+    case _ => Seq.empty
+  }) ++ Seq(OAuth.ResponseType.Code)
 
   val allowedGrantType: Seq[String] = Seq(OAuth.GrantType.AuthorizationCode, OAuth.GrantType.ClientCredentials, OAuth.GrantType.RefreshToken)
 
   val issuedAt: Long = createdAt.getMillis
-  */
 }
 
 object App extends SQLSyntaxSupport[App] with ShortenedNames {
@@ -67,8 +63,9 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
     uri = rs.string(a.uri),
     iconUri = rs.stringOpt(a.iconUri),
     redirectUris = rs.stringOpt(a.redirectUris).map(_.split(",")),
-    isWebApp = rs.boolean(a.isWebApp),
-    isNativeApp = rs.boolean(a.isNativeApp),
+    //TODO Check the doc for boolean mapping
+    isWebApp = rs.int(a.isWebApp) == 1,
+    isNativeApp = rs.int(a.isNativeApp) == 1,
     createdAt = rs.timestamp(a.createdAt).toDateTime
   )
 
@@ -86,6 +83,15 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
         .from[App](App as a)
         .leftJoin(User as u).on(a.ownerId, u.id)
         .where.eq(a.pid, id)
+    }.map(App(a, u)).single.future
+  }
+
+  def find(id: String)(implicit session: AsyncDBSession, cxt: EC): Future[Option[App]] = {
+    withSQL {
+      select
+        .from[App](App as a)
+        .leftJoin(User as u).on(a.ownerId, u.id)
+        .where.eq(a.id, id)
     }.map(App(a, u)).single.future
   }
 

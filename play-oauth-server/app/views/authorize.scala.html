@@ -1,0 +1,57 @@
+@(app: App, form: Form[Authorization.PermissionForm])(implicit user: User, request: RequestHeader, lang: Lang)
+
+@import org.joda.time.format.DateTimeFormat
+
+@s = {
+    <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
+    <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
+}
+
+@c = {
+    @part.navbar("", user)
+    <div class="container">
+
+        <div class="row">
+            <div class="col-sm-8 col-sm-offset-2">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <div class="text-center">
+                            <h3>@Messages("app.authorization.title", user.name, app.name)</h3>
+                            <p>@Html(Messages("app.authorization.message", user.name, app.name, app.owner.map(_.name).getOrElse("")))</p>
+                        </div>
+                        @helper.form(routes.Authorization.authorize(), 'class -> "form") {
+                            <h4 class="text-center" style="margin-bottom: 0">@Messages("app.authorization.ask", app.name)</h4>
+                            <p class="text-center"><a href="#more" class="btn" data-toggle="collapse">@Messages("app.authorization.learn-more", app.name)</a></p>
+                            <div id="more" class="collapse">
+                                <div class="app-title">
+                                    <img src="@app.icon" alt="@app.name" class="app-uri pull-left"/><h4 style="margin-bottom: 0;">@app.name</h4>
+                                    <div><a href="@app.uri" title="@app.name" target="_blank">@app.uri</a></div>
+                                </div>
+                                <p class="text-muted">@app.description</p>
+                            </div>
+                            <div>
+                                @defining(form("appId")) { field =>
+                                    <input type="hidden" name="@field.name" value="@field.value"/>
+                                }
+                                @defining(form("scope")) { field =>
+                                    <input type="hidden" name="@field.name" value="@field.value"/>
+                                }
+                                @defining(form("redirectUri")) { field =>
+                                    <input type="hidden" name="@field.name" value="@field.value"/>
+                                }
+                                @defining(form("state")) { field =>
+                                    <input type="hidden" name="@field.name" value="@field.value"/>
+                                }
+                                <button type="submit" name="decision" value="false" class="btn btn-lg btn-block btn-default">@Messages("app.authorization.deny")</button>
+                                <button type="submit" name="decision" value="true" class="btn btn-lg btn-block btn-primary">@Messages("app.authorization.allow")</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+}
+
+@main(app.name)(c, s)

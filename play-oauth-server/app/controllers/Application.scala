@@ -1,20 +1,21 @@
 package controllers
 
 import play.api.mvc._
-import scala.concurrent.{Future, ExecutionContext}
-import ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.data.validation.Constraints._
 import scalikejdbc.async.AsyncDB
 import models.User
-import play.api.libs.Crypto
-import domain.Authenticated
+import domain.DB._
+import domain.Security._
 
 object Application extends Controller {
 
-  def index = Authenticated { implicit request =>
-    Ok(views.html.index())
+  def index = InTx { implicit tx =>
+    AuthenticatedAction.apply { implicit request =>
+      Ok(views.html.index())
+    }
   }
 
   val signUpForm = Form(
@@ -42,10 +43,10 @@ object Application extends Controller {
 
     form.fold(f => Future.successful(BadRequest(views.html.signin(back, f))), _ match {
       case (email, password) => {
-        AsyncDB.localTx { implicit tx =>
+        AsyncDB.withPool { implicit tx =>
           User.findByEmail(email).flatMap(_.fold(Future.successful(BadRequest(views.html.signin(back, form.withGlobalError("error.user.not.found"))))){ u =>
-            u.password == Crypto.encryptAES(password) match {
-              case true => domain.Authenticated.logIn(u, back.getOrElse(routes.Application.index.url))
+            u.passwordMatch(password) match {
+              case true => AuthenticatedAction.logIn(u, back.getOrElse(routes.Application.index.url))
               case false => Future.successful(BadRequest(views.html.signin(back, form.withGlobalError("error.credentials.not.match"))))
             }
           })
@@ -65,10 +66,10 @@ object Application extends Controller {
 
     form.fold(f => Future.successful(BadRequest(views.html.signup(back, f))), _ match {
       case (firstName, lastName, email, password) => {
-        AsyncDB.localTx { implicit tx =>
+        AsyncDB.withPool { implicit tx =>
           User.findByEmail(email).flatMap(_.fold(
-            User.create(email, Crypto.encryptAES(password), firstName, lastName).flatMap(u =>
-              domain.Authenticated.logIn(u, back.getOrElse(routes.Application.index.url))
+            User.create(email, password, firstName, lastName).flatMap(u =>
+              AuthenticatedAction.logIn(u, back.getOrElse(routes.Application.index.url))
             )){ u =>
               Future.successful(BadRequest(views.html.signup(back, form.withGlobalError("error.user.exist"))))
             }
@@ -79,7 +80,9 @@ object Application extends Controller {
 
   }
 
-  def logout = Authenticated.async { implicit request =>
-    Authenticated.logOut(request.user)
+  def logout = InTx { implicit tx =>
+    AuthenticatedAction.async { implicit request =>
+      AuthenticatedAction.logOut(request.user)
+    }
   }
 }

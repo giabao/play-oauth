@@ -20,7 +20,8 @@ password.placeholder = Your password
 home.link = Home
 apps.link = Your apps
 all-apps.link = View all
-profile.link = Edit your profile
+user.apps.link = Your authorized apps
+user.profile.link = Edit your profile
 logout.link = Log out
 
 application.title = Oauth 2 server sample
@@ -65,6 +66,14 @@ app.delete.confirm.title = Do you really want to delete?
 app.delete.confirm = You are about to delete "{0}", please confirm !
 app.delete.cancel = No, Bring me back to the app
 app.delete.submit = Yes, Delete this app
+
+app.authorization.title = {0}, an application would like to connect to your account
+app.authorization.message = The app <b>{1}</b> by <b>{2}</b> would like the ability to connect to your account
+app.authorization.learn-more = Learn more about {0}
+app.authorization.ask = Allow access to {0}?
+app.authorization.deny = Deny
+app.authorization.allow = Allow
+
 
 error.user.exist = Your already have an account?
 error.user.not.found = User not found

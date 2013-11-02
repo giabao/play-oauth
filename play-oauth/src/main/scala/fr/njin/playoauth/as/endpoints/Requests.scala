@@ -1,15 +1,16 @@
 package fr.njin.playoauth.as.endpoints
 
 import play.api.data.Forms._
-import play.api.data.{FormError, Form}
+import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
 import Constraints._
 import play.api.data.format.Formatter
-import fr.njin.playoauth.common.request._
-import fr.njin.playoauth.common.request.PasswordTokenRequest
 import fr.njin.playoauth.common.request.AuthzRequest
+import fr.njin.playoauth.common.request.PasswordTokenRequest
+import fr.njin.playoauth.common.request.ClientCredentialsTokenRequest
 import play.api.data.FormError
 import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
+import fr.njin.playoauth.common.request.RefreshTokenRequest
 
 /**
  * User: bathily
@@ -76,6 +77,5 @@ object Requests {
     OAuth.GrantType.Password -> passwordTokenRequestForm,
     OAuth.GrantType.RefreshToken -> refreshTokenRequestForm
   )
-  
 
 }

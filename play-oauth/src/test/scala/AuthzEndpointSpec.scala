@@ -22,19 +22,6 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
     import ExecutionContext.Implicits.global
 
-    "Register a client" in new Endpoint {
-      val client = Await.result(authzEndpoint.register(Seq(OAuth.ResponseType.Code), Seq(), new BasicOauthClientInfo()), timeout)
-      (client.id must not).beNull
-      (client.secret must not).beNull
-      Await.result(repository.find(client.id), 1 millis) must be equalTo Some(client)
-    }
-
-    "De register a client" in new Endpoint {
-      val client = Await.result(factory.apply(Seq(OAuth.ResponseType.Code), Seq(), new BasicOauthClientInfo()).flatMap(repository.save), timeout)
-      Await.result(authzEndpoint.deRegister(client), 1 millis)
-      Await.result(repository.find(client.id), 1 millis) must beNone
-    }
-
     "Issues an authorization code and delivers it to the client" in new EndPointWithClients {
       val r = authz.apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithURI,

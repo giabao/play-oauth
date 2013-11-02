@@ -1,4 +1,4 @@
-@(app: App)(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+@(app: App)(implicit user: User, request: RequestHeader, lang: Lang)
 
 
 @s = {
@@ -7,7 +7,7 @@
 }
 
 @c = {
-    @part.navbar("app", request.user)
+    @part.navbar("app", user)
     <div class="container">
         <div class="panel panel-default">
             <div class="panel-body text-center">

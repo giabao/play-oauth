@@ -1,6 +1,6 @@
 import com.github.theon.uri.config.UriConfig
 import com.github.theon.uri.Uri
-import play.api.mvc.AnyContentAsEmpty
+import play.api.mvc.{AnyContentAsFormUrlEncoded, AnyContentAsEmpty}
 import play.api.test.FakeRequest
 
 /**
@@ -29,6 +29,10 @@ object Utils {
 
   object OauthFakeRequest {
     def apply(query: (String, String)*):FakeRequest[AnyContentAsEmpty.type] = FakeRequest("GET", fullUrl("/", query))
+  }
+
+  object OauthTokenFakeRequest {
+    def apply(query: (String, String)*):FakeRequest[AnyContentAsFormUrlEncoded] = FakeRequest("POST", "").withFormUrlEncodedBody(query:_*)
   }
 
 }

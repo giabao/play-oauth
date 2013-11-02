@@ -44,6 +44,7 @@ object OAuth {
 
   var ErrorClientMissing = "error.missing.clientId"
   val ErrorClientNotFound = "error.client.notfound"
+  val ErrorClientCredentialsDontMatch = "error.client.credentials_dont_match"
   val ErrorRedirectURIMissing = "error.redirectUri.missing"
   val ErrorRedirectURIInvalid = "error.redirectUri.invalid"
   val ErrorInvalidScope = "error.invalid.scope"
@@ -53,6 +54,7 @@ object OAuth {
   val ErrorUnknownAuthorizationCode = "error.unknown.authorization_code"
   val ErrorExpiredAuthorizationCode = "error.expired.authorization_code"
   val ErrorRevokedAuthorizationCode = "error.revoked.authorization_code"
+  val ErrorAlreadyConsumedAuthorizationCode = "error.already_consumed.authorization_code"
   val ErrorClientNotMatch = "error.client.not_match"
   val ErrorRedirectURINotMatch = "error.redirectUri.not_match"
   val ErrorMultipleParameters = "error.multiple.parameters"

@@ -1,18 +1,25 @@
 package domain
 
 import fr.njin.playoauth.common.domain._
-import java.util.{Date, UUID}
-import scala.concurrent.{Future, ExecutionContext}
+import java.util.UUID
+import scala.concurrent.{ExecutionContext, Future}
+import models._
+import scalikejdbc.async.AsyncDBSession
 
-class UUIDOauthClientFactory extends OauthClientFactory[BasicOauthClientInfo, BasicOauthClient] {
-  def apply(allowedResponseType: Seq[String], allowedGrantType: Seq[String],info:BasicOauthClientInfo)(implicit ec: ExecutionContext): Future[BasicOauthClient] =
-    Future.successful(BasicOauthClient(UUID.randomUUID().toString, UUID.randomUUID().toString, allowedResponseType, allowedGrantType, info))
+class AuthCodeFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeFactory[AuthCode, User, Permission, App] {
+
+  def apply(owner: User, client: App, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[AuthCode] =
+    Permission.find(owner, client).flatMap(p =>
+      AuthCode.create(UUID.randomUUID().toString, p.get, scopes, redirectUri)
+    )
+
 }
 
-class UUIDOauthCodeFactory[RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C <: OauthClient] extends OauthCodeFactory[BasicOauthCode[RO, P, C], RO, P, C] {
-  def apply(owner: RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]])(implicit ec:ExecutionContext): Future[BasicOauthCode[RO, P, C]] = Future.successful(new BasicOauthCode(UUID.randomUUID().toString, owner, client, new Date().getTime, redirectUri = redirectUri, scopes = scopes))
-}
+class AuthTokenFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthTokenFactory[AuthToken, User, Permission, App] {
 
-class UUIDOauthTokenFactory[RO <: OauthResourceOwner[C, P], P <: OauthPermission[C], C <: OauthClient] extends OauthTokenFactory[BasicOauthToken[RO, P, C], RO, P, C] {
-  def apply(owner: RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]])(implicit ec: ExecutionContext): Future[BasicOauthToken[RO, P, C]] = Future.successful(new BasicOauthToken[RO,P,C](owner, client, UUID.randomUUID().toString, "example"))
+  def apply(owner: User, client: App, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[AuthToken] =
+    Permission.find(owner, client).flatMap(p =>
+      AuthToken.create(p.get, UUID.randomUUID().toString, "bearer", UUID.randomUUID().toString)
+    )
+
 }
