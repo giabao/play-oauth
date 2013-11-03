@@ -1,8 +1,7 @@
 @(app: App, form: Form[Authorization.PermissionForm])(implicit user: User, request: RequestHeader, lang: Lang)
 
-@import org.joda.time.format.DateTimeFormat
 
-@s = {
+    @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">
     <link href="@routes.Assets.at("stylesheets/apps.css")" rel="stylesheet">
 }

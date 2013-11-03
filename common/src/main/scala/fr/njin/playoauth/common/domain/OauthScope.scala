@@ -1,6 +1,6 @@
 package fr.njin.playoauth.common.domain
 
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
 
 /**
  * User: bathily

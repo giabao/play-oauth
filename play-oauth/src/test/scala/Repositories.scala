@@ -17,8 +17,8 @@ class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = 
 
 }
 
-abstract class InMemoryOauthCodeRepository[CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient](var codes: Set[CO] = Set.empty[CO])
-  extends OauthCodeRepository[CO, RO, P, C] with OauthCodeFactory[CO, RO, P, C] {
+abstract class InMemoryOauthCodeRepository[CO <: OauthCode[RO, C], RO <: OauthResourceOwner, C <: OauthClient](var codes: Set[CO] = Set.empty[CO])
+  extends OauthCodeRepository[CO, RO, C] with OauthCodeFactory[CO, RO, C] {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -35,8 +35,8 @@ abstract class InMemoryOauthCodeRepository[CO <: OauthCode[RO, P, C], RO <: Oaut
   })
 }
 
-abstract class InMemoryOauthTokenRepository[TO <: OauthToken[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient](var tokens: Set[TO] = Set.empty[TO])
-  extends OauthTokenRepository[TO, RO, P, C] with OauthTokenFactory[TO, RO, P, C] {
+abstract class InMemoryOauthTokenRepository[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C <: OauthClient](var tokens: Set[TO] = Set.empty[TO])
+  extends OauthTokenRepository[TO, RO, C] with OauthTokenFactory[TO, RO, C] {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 

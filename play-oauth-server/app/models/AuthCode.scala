@@ -14,7 +14,7 @@ case class AuthCode(id: Long,
                     scopes: Option[Seq[String]],
                     redirectUri: Option[String],
                     createdAt: DateTime,
-                    revokedAt: Option[DateTime]) extends ShortenedNames with OauthCode[User, Permission, App] {
+                    revokedAt: Option[DateTime]) extends ShortenedNames with OauthCode[User, App] {
 
   def owner: User = permission.flatMap(_.user).orNull
   def issueAt: Long = createdAt.getMillis

@@ -6,7 +6,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import models._
 import scalikejdbc.async.AsyncDBSession
 
-class AuthCodeFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeFactory[AuthCode, User, Permission, App] {
+class AuthCodeFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeFactory[AuthCode, User, App] {
 
   def apply(owner: User, client: App, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[AuthCode] =
     Permission.find(owner, client).flatMap(p =>
@@ -15,7 +15,7 @@ class AuthCodeFactory(implicit session:AsyncDBSession, ec: ExecutionContext) ext
 
 }
 
-class AuthTokenFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthTokenFactory[AuthToken, User, Permission, App] {
+class AuthTokenFactory(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthTokenFactory[AuthToken, User, App] {
 
   def apply(owner: User, client: App, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[AuthToken] =
     Permission.find(owner, client).flatMap(p =>

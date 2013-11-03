@@ -1,12 +1,10 @@
-import fr.njin.playoauth.common.domain.BasicOauthClientInfo
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.{AnyContentAsEmpty, AnyContentAsFormUrlEncoded}
+import play.api.mvc.AnyContentAsEmpty
 import play.api.test._
 import play.api.test.Helpers._
-import scala.concurrent.{ExecutionContext, Await}
-import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 import com.github.theon.uri.Uri.parse
 import Utils._
 

@@ -28,7 +28,7 @@ object Oauth2Resource {
       }
     )}
 
-  def resourceOwner[TO <: OauthToken[U, P, C], U <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient]
+  def resourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (tokenRepository: String => Future[Option[TO]])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] =
@@ -39,35 +39,35 @@ object Oauth2Resource {
       })).getOrElse(Future.successful(Left(None)))
     }
 
-  def localResourceOwner[TO <: OauthToken[U, P, C], U <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient]
-    (tokenRepository: OauthTokenRepository[TO, U, P, C])
+  def localResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
+    (tokenRepository: OauthTokenRepository[TO, U, C])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] =
 
-    resourceOwner[TO, U, P, C](tokenRepository.find)(token, ec)
+    resourceOwner[TO, U, C](tokenRepository.find)(token, ec)
 
 
-  def remoteResourceOwner[TO <: OauthToken[U, P, C], U <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient]
+  def remoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (url: String, queryParameter: String = "value")
     (authenticate: WS.WSRequestHolder => WS.WSRequestHolder)
     (fromResponse: Response => Option[TO])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] = {
 
-    resourceOwner[TO, U, P, C](value => {
+    resourceOwner[TO, U, C](value => {
       authenticate(WS.url(url).withQueryString(queryParameter -> value))
         .get().map(fromResponse)
     })(token, ec)
 
   }
 
-  def remoteResourceOwner[TO <: OauthToken[U, P, C], U <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient]
+  def remoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (url: String, username: String, password: String, queryParameter: String = "value")
     (fromResponse: Response => Option[TO])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] = {
 
-    remoteResourceOwner[TO, U, P, C](url, queryParameter) { ws =>
+    remoteResourceOwner[TO, U, C](url, queryParameter) { ws =>
       ws.withAuth(username, password, AuthScheme.BASIC)
     }(fromResponse)(token, ec)
 

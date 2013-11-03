@@ -12,9 +12,9 @@ trait OauthPermission[C <: OauthClient] {
 }
 
 class BasicOAuthPermission[C <: OauthClient](val accepted: Boolean,
-                                                              val client: C,
-                                                              val scope: Option[Seq[String]],
-                                                              val redirectUri: Option[String]) extends OauthPermission[C] {
+                                             val client: C,
+                                             val scope: Option[Seq[String]],
+                                             val redirectUri: Option[String]) extends OauthPermission[C] {
 
   def authorized(request: AuthzRequest): Boolean = accepted && request.redirectUri == redirectUri
 }

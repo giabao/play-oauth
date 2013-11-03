@@ -12,7 +12,7 @@ case class TokenResponse(accessToken: String,
                          scope: Option[Seq[String]] = None)
 object TokenResponse {
 
-  def apply(t:OauthToken[_,_,_]): TokenResponse = TokenResponse(t.accessToken, t.tokenType, t.expiresIn, t.refreshToken, t.scope)
+  def apply(t:OauthToken[_,_]): TokenResponse = TokenResponse(t.accessToken, t.tokenType, t.expiresIn, t.refreshToken, t.scope)
 
   implicit val tokenWrites: Writes[TokenResponse] = (
     (__ \ OAuth.OauthAccessToken).write[String] ~

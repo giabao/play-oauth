@@ -13,7 +13,7 @@ class AppRepository(implicit val session: AsyncDBSession, val ec: ExecutionConte
 }
 
 class AuthTokenRepository(implicit val session: AsyncDBSession, val ec: ExecutionContext)
-  extends OauthTokenRepository[AuthToken, User, Permission, App] {
+  extends OauthTokenRepository[AuthToken, User, App] {
 
   def find(value: String): Future[Option[AuthToken]] = AuthToken.findForValue(value)
 
@@ -27,7 +27,7 @@ class AuthTokenRepository(implicit val session: AsyncDBSession, val ec: Executio
   }
 }
 
-class AuthCodeRepository(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeRepository[AuthCode, User, Permission, App] {
+class AuthCodeRepository(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeRepository[AuthCode, User, App] {
 
   def find(value: String): Future[Option[AuthCode]] = AuthCode.find(value, false)
 

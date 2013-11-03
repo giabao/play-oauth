@@ -1,7 +1,6 @@
 package fr.njin.playoauth.as.endpoints
 
 import play.api.data.validation.{ValidationError, Invalid, Valid, Constraint}
-import java.net.{URISyntaxException, URI}
 import org.apache.commons.validator.routines.UrlValidator
 
 /**

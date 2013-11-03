@@ -48,7 +48,7 @@ trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthenticati
 
 }
 
-trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]] {
+trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
 
   this: ClientAuthentication[C] =>
 
@@ -56,10 +56,10 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <:
 
   def clientRepository: OauthClientRepository[C]
   def scopeRepository: OauthScopeRepository[SC]
-  def codeFactory: OauthCodeFactory[CO, RO, P, C]
-  def codeRepository: OauthCodeRepository[CO, RO, P, C]
-  def tokenFactory: OauthTokenFactory[TO, RO, P, C]
-  def tokenRepository: OauthTokenRepository[TO, RO, P, C]
+  def codeFactory: OauthCodeFactory[CO, RO, C]
+  def codeRepository: OauthCodeRepository[CO, RO, C]
+  def tokenFactory: OauthTokenFactory[TO, RO, C]
+  def tokenRepository: OauthTokenRepository[TO, RO, C]
   def supportedGrantType: Seq[String]
 
   type TokenValidation =  (TokenRequest, C) => ExecutionContext => Future[Option[OauthError]]
@@ -227,13 +227,13 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <:
   }
 }
 
-class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]](
+class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],
-  val codeFactory: OauthCodeFactory[CO, RO, P, C],
-  val codeRepository: OauthCodeRepository[CO, RO, P, C],
-  val tokenFactory: OauthTokenFactory[TO, RO, P, C],
-  val tokenRepository: OauthTokenRepository[TO, RO, P, C],
+  val codeFactory: OauthCodeFactory[CO, RO, C],
+  val codeRepository: OauthCodeRepository[CO, RO, C],
+  val tokenFactory: OauthTokenFactory[TO, RO, C],
+  val tokenRepository: OauthTokenRepository[TO, RO, C],
   val supportedGrantType: Seq[String] = OAuth.GrantType.All
 ) extends Token[C, SC, CO, RO, P, TO] {
   this: ClientAuthentication[C] =>

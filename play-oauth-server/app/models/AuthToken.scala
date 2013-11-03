@@ -16,7 +16,7 @@ case class AuthToken(id:Long,
                      lifetime: Long,
                      revokedAt: Option[DateTime],
                      refreshToken: Option[String] = None,
-                     createdAt: DateTime) extends OauthToken[User, Permission, App] with ShortenedNames{
+                     createdAt: DateTime) extends OauthToken[User, App] with ShortenedNames{
 
   def accessToken: String = value
   def client: App = permission.flatMap(_.app).orNull

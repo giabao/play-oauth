@@ -10,12 +10,10 @@ import scalikejdbc.async.AsyncDBSession
 import domain.DB._
 import domain.Security._
 import scala.concurrent.{Future, ExecutionContext}
-import domain._
 import play.api.data.Form
 import play.api.data.Forms._
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.AuthzRequest
-import scala.Some
 import play.api.libs.iteratee.{Done, Input, Iteratee}
 import domain.oauth2._
 import scala.Some

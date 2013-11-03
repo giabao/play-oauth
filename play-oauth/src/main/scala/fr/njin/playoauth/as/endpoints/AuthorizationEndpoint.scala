@@ -22,17 +22,17 @@ import fr.njin.playoauth.Utils
  * User: bathily
  * Date: 17/09/13
  */
-trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]] {
+trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
 
   val logger:Logger = AuthorizationEndpoint.logger
 
   def permissions: OauthResourceOwnerPermission[RO, C, P]
   def clientRepository: OauthClientRepository[C]
   def scopeRepository: OauthScopeRepository[SC]
-  def codeFactory: OauthCodeFactory[CO, RO, P, C]
-  def codeRepository: OauthCodeRepository[CO, RO, P, C]
-  def tokenFactory: OauthTokenFactory[TO, RO, P, C]
-  def tokenRepository: OauthTokenRepository[TO, RO, P, C]
+  def codeFactory: OauthCodeFactory[CO, RO, C]
+  def codeRepository: OauthCodeRepository[CO, RO, C]
+  def tokenFactory: OauthTokenFactory[TO, RO, C]
+  def tokenRepository: OauthTokenRepository[TO, RO, C]
   def supportedResponseType: Seq[String]
 
   type AuthzValidation =  (AuthzRequest, C) => ExecutionContext => Future[Option[Map[String, Seq[String]]]]
@@ -168,14 +168,14 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C
 
 }
 
-class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]](
+class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val permissions: OauthResourceOwnerPermission[RO, C, P],
   val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],
-  val codeFactory: OauthCodeFactory[CO, RO, P, C],
-  val codeRepository: OauthCodeRepository[CO, RO, P, C],
-  val tokenFactory: OauthTokenFactory[TO, RO, P, C],
-  val tokenRepository: OauthTokenRepository[TO, RO, P, C],
+  val codeFactory: OauthCodeFactory[CO, RO, C],
+  val codeRepository: OauthCodeRepository[CO, RO, C],
+  val tokenFactory: OauthTokenFactory[TO, RO, C],
+  val tokenRepository: OauthTokenRepository[TO, RO, C],
   val supportedResponseType: Seq[String] = OAuth.ResponseType.All
 ) extends Authorization[C, SC, CO, RO, P, TO]
 

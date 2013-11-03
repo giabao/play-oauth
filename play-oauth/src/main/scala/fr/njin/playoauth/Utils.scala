@@ -1,6 +1,6 @@
 package fr.njin.playoauth
 
-import play.api.mvc.{RequestHeader, AnyContent, Request}
+import play.api.mvc.RequestHeader
 import org.apache.commons.codec.binary.Base64
 
 

@@ -2,7 +2,7 @@ package fr.njin.playoauth.common.domain
 
 import scala.concurrent.Future
 
-trait OauthToken[RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient] {
+trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
 
   def owner: RO
   def client: C
@@ -16,11 +16,11 @@ trait OauthToken[RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthCl
 
 }
 
-trait OauthTokenFactory[TO <: OauthToken[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient] {
+trait OauthTokenFactory[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
   def apply(owner:RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[TO]
 }
 
-trait OauthTokenRepository[TO <: OauthToken[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient] {
+trait OauthTokenRepository[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
 
   def find(value: String): Future[Option[TO]]
   def findForRefreshToken(value: String): Future[Option[TO]]
@@ -28,7 +28,7 @@ trait OauthTokenRepository[TO <: OauthToken[RO, P, C], RO <: OauthResourceOwner,
 
 }
 
-class BasicOauthToken[RO <: OauthResourceOwner, P <: OauthPermission[C], C <: OauthClient](
+class BasicOauthToken[RO <: OauthResourceOwner, C <: OauthClient](
                       val owner: RO,
                       val client: C,
                       val accessToken: String,
@@ -36,4 +36,4 @@ class BasicOauthToken[RO <: OauthResourceOwner, P <: OauthPermission[C], C <: Oa
                       val revoked: Boolean = false,
                       val expiresIn: Option[Long] = None,
                       val refreshToken: Option[String] = None,
-                      val scope: Option[Seq[String]] = None) extends OauthToken[RO, P, C]
+                      val scope: Option[Seq[String]] = None) extends OauthToken[RO, C]

@@ -1,6 +1,6 @@
-RediscalaPlugin, for Play! Framework 2
+play-oauth for Play! Framework 2
 
-  provides Redis Scala Support to Play! Framework 2 based on Rediscala a Redis client for Scala (2.10+) and (AKKA 2.2+) with non-blocking and asynchronous I/O operations.
+  provides Oauth2 kit to Play! Framework 2.
 
 
 Copyright 2013 Didier Bathily (@dbathily)

@@ -1,6 +1,6 @@
 package domain.oauth2
 
-import models.{App, Permission, AuthToken, User}
+import models.{App, AuthToken, User}
 import play.api.mvc.EssentialAction
 import scalikejdbc.async.AsyncDBSession
 import scala.concurrent.ExecutionContext
@@ -17,7 +17,7 @@ object Resource {
   }
 
   def remote(scopes: String*)(action: User => EssentialAction)(implicit session: AsyncDBSession, ec: ExecutionContext = dbContext): EssentialAction = {
-    Oauth2Resource.scoped[User](scopes:_*)(action)()(Oauth2Resource.remoteResourceOwner[AuthToken, User, Permission, App]
+    Oauth2Resource.scoped[User](scopes:_*)(action)()(Oauth2Resource.remoteResourceOwner[AuthToken, User, App]
       ("http://localhost:9000/oauth2/token","CLIENT_ID","CLIENT_SECRET"){ response => response.status match {
       case Status.OK => Json.fromJson[AuthToken](response.json).asOpt
       case _ => None
