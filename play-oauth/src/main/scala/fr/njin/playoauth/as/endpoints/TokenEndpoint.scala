@@ -27,13 +27,13 @@ import play.api.Logger
  * Date: 17/09/13
  */
 
-trait ClientAuthentication[T <: OauthClient] {
-  def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[T], OauthError]]
+trait ClientAuthentication[C <: OauthClient] {
+  def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[C], OauthError]]
 }
 
-trait SecretKeyClientAuthentication[T <: OauthClient] extends ClientAuthentication[T] {
+trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthentication[C] {
 
-  def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[T], OauthError]] = {
+  def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[C], OauthError]] = {
     val data = request.body.data
     (for {
       id <- data.get(OAuth.OauthClientId).flatMap(_.headOption)
@@ -44,26 +44,26 @@ trait SecretKeyClientAuthentication[T <: OauthClient] extends ClientAuthenticati
       }.getOrElse(Future.successful(Left(None)))
   }
 
-  def authenticate(id: String, secret: String): Future[Either[Option[T], OauthError]]
+  def authenticate(id: String, secret: String): Future[Either[Option[C], OauthError]]
 
 }
 
-trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]] {
+trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]] {
 
-  this: ClientAuthentication[T] =>
+  this: ClientAuthentication[C] =>
 
   val logger:Logger = TokenEndpoint.logger
 
-  def clientRepository: OauthClientRepository[T]
+  def clientRepository: OauthClientRepository[C]
   def scopeRepository: OauthScopeRepository[SC]
-  def codeFactory: OauthCodeFactory[CO, RO, P, T]
-  def codeRepository: OauthCodeRepository[CO, RO, P, T]
-  def tokenFactory: OauthTokenFactory[TO, RO, P, T]
-  def tokenRepository: OauthTokenRepository[TO, RO, P, T]
+  def codeFactory: OauthCodeFactory[CO, RO, P, C]
+  def codeRepository: OauthCodeRepository[CO, RO, P, C]
+  def tokenFactory: OauthTokenFactory[TO, RO, P, C]
+  def tokenRepository: OauthTokenRepository[TO, RO, P, C]
   def supportedGrantType: Seq[String]
 
-  type TokenValidation =  (TokenRequest, T) => ExecutionContext => Future[Option[OauthError]]
-  type CodeValidation =  (TokenRequest, T, CO) => ExecutionContext => Future[Option[OauthError]]
+  type TokenValidation =  (TokenRequest, C) => ExecutionContext => Future[Option[OauthError]]
+  type CodeValidation =  (TokenRequest, C, CO) => ExecutionContext => Future[Option[OauthError]]
 
   val clientGrantTypeValidation:TokenValidation = (tokenRequest, client) => implicit ec => {
     Future.successful {
@@ -113,7 +113,7 @@ trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <:
 
   def errorToJson(error: OauthError)(implicit writes: Writes[OauthError]) = Json.toJson(error)(writes)
 
-  def clientOf(tokenRequest: TokenRequest)(implicit request: Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext): Future[Either[Option[T], OauthError]] = tokenRequest match {
+  def clientOf(tokenRequest: TokenRequest)(implicit request: Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext): Future[Either[Option[C], OauthError]] = tokenRequest match {
     case AuthorizationCodeTokenRequest(_, clientId, _) => clientRepository.find(clientId).map(Left(_))
     case _ => authenticate(request)
   }
@@ -122,7 +122,7 @@ trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <:
     Future.successful(BadRequest(errorToJson(InvalidRequestError(Some(f.errorsAsJson.toString())))))
   }
 
-  def onTokenRequest(tokenRequest: TokenRequest)(f:(TokenRequest, T) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit request:Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext, writes: Writes[OauthError]) = {
+  def onTokenRequest(tokenRequest: TokenRequest)(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit request:Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext, writes: Writes[OauthError]) = {
 
     clientOf(tokenRequest).flatMap(_.fold(_.fold(Future.successful(Unauthorized(errorToJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
       Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap {
@@ -133,11 +133,11 @@ trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <:
 
   }
 
-  def token(owner: (String, String) => Future[Option[RO]], clientOwner: T => Future[Option[RO]])
+  def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
            (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
     token(perform(owner, clientOwner))
 
-  def token(f:(TokenRequest, T) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] = implicit request => {
+  def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] = implicit request => {
 
     val query = request.body.data
 
@@ -159,7 +159,7 @@ trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <:
   }
 
   def perform(owner: (String, String) => Future[Option[RO]],
-              clientOwner: T => Future[Option[RO]]) (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): (TokenRequest, T) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+              clientOwner: C => Future[Option[RO]]) (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): (TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
     
     (tokenRequest, oauthClient) => request => {
       tokenRequest match {
@@ -197,23 +197,23 @@ trait Token[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <:
       }
     }
 
-  def issueAToken(owner: RO, client: T, redirectUri: Option[String], scope: Option[Seq[String]])(implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[SimpleResult] =
+  def issueAToken(owner: RO, client: C, redirectUri: Option[String], scope: Option[Seq[String]])(implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[SimpleResult] =
     tokenFactory(owner, client, redirectUri, scope).map { token =>
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
     }
 }
 
-class TokenEndpoint[T <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, T], RO <: OauthResourceOwner, P <: OauthPermission[T], TO <: OauthToken[RO, P, T]](
-  val clientRepository: OauthClientRepository[T],
+class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]](
+  val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],
-  val codeFactory: OauthCodeFactory[CO, RO, P, T],
-  val codeRepository: OauthCodeRepository[CO, RO, P, T],
-  val tokenFactory: OauthTokenFactory[TO, RO, P, T],
-  val tokenRepository: OauthTokenRepository[TO, RO, P, T],
+  val codeFactory: OauthCodeFactory[CO, RO, P, C],
+  val codeRepository: OauthCodeRepository[CO, RO, P, C],
+  val tokenFactory: OauthTokenFactory[TO, RO, P, C],
+  val tokenRepository: OauthTokenRepository[TO, RO, P, C],
   val supportedGrantType: Seq[String] = OAuth.GrantType.All
-) extends Token[T, SC, CO, RO, P, TO] {
-  this: ClientAuthentication[T] =>
+) extends Token[C, SC, CO, RO, P, TO] {
+  this: ClientAuthentication[C] =>
 }
 
 object TokenEndpoint {
