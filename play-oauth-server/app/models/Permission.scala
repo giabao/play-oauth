@@ -1,11 +1,14 @@
 package models
 
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import org.joda.time.DateTime
 import scalikejdbc._, async._, SQLInterpolation._
 import scala.concurrent.Future
 import fr.njin.playoauth.common.domain.OauthPermission
 import fr.njin.playoauth.common.request.AuthzRequest
 import sqls.{ distinct, count }
+
 
 /**
  * User: bathily
@@ -29,6 +32,35 @@ case class Permission(id: Long,
 }
 
 object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
+
+  implicit val writes: Writes[Permission] =
+    (
+      (__ \ "id").write[Long] ~
+      (__ \ "user").writeNullable[User] ~
+      (__ \ "appId").write[Long] ~
+      (__ \ "decision").write[Boolean] ~
+      (__ \ "scope").writeNullable[Seq[String]] ~
+      (__ \ "redirectUri").writeNullable[String] ~
+      (__ \ "state").writeNullable[String] ~
+      (__ \ "createdAt").write[DateTime] ~
+      (__ \ "revokedAt").writeNullable[DateTime]
+    )(p => (p.id, p.user, p.appId, p.decision, p.scope, p.redirectUri, p.state, p.createdAt, p.revokedAt))
+
+  implicit val reads: Reads[Permission] =
+    (
+      (__ \ "id").read[Long] ~
+      (__ \ "user").readNullable[User] ~
+      (__ \ "appId").read[Long] ~
+      (__ \ "decision").read[Boolean] ~
+      (__ \ "scope").readNullable[Seq[String]] ~
+      (__ \ "redirectUri").readNullable[String] ~
+      (__ \ "state").readNullable[String] ~
+      (__ \ "createdAt").read[DateTime] ~
+      (__ \ "revokedAt").readNullable[DateTime]
+    )((id, user, appId, decision, scope, redirectUri, state, createdAt, revokedAt) =>
+      Permission(id, user.map(_.id).getOrElse(0), user, appId, None, decision, scope, redirectUri, state, createdAt, revokedAt)
+    )
+
 
   override val columnNames: Seq[String] = Seq("id", "user_id", "app_id", "decision", "scope", "redirect_uri", "state", "created_at", "revoked_at")
 

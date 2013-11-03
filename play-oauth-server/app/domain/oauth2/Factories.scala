@@ -19,7 +19,7 @@ class AuthTokenFactory(implicit session:AsyncDBSession, ec: ExecutionContext) ex
 
   def apply(owner: User, client: App, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[AuthToken] =
     Permission.find(owner, client).flatMap(p =>
-      AuthToken.create(p.get, UUID.randomUUID().toString, "bearer", UUID.randomUUID().toString)
+      AuthToken.create(p.get, UUID.randomUUID().toString, "Bearer", UUID.randomUUID().toString)
     )
 
 }

@@ -1,11 +1,11 @@
 package models
 
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import scalikejdbc._, async._, FutureImplicits._, SQLInterpolation._
 import scala.concurrent.Future
 import fr.njin.playoauth.common.domain.OauthResourceOwner
-import play.api.libs.Crypto
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
+import org.mindrot.jbcrypt.BCrypt
 
 
 /**
@@ -24,17 +24,31 @@ case class User(id:Long,
   def save(implicit session: AsyncDBSession, ctx: EC): Future[User] = User.save(this)(session, ctx)
   def delete(implicit session: AsyncDBSession, ctx: EC): Future[Unit] = User.destroy(id)(session, ctx)
 
-  def passwordMatch(candidate:String): Boolean = password == Crypto.encryptAES(candidate)
+  def passwordMatch(candidate:String): Boolean =
+    try {
+      BCrypt.checkpw(candidate, password)
+    } catch {
+      case _: Throwable => false
+    }
 }
 
 object User extends SQLSyntaxSupport[User] with ShortenedNames {
 
-  implicit val writes: Writes[User] = (
-    (__ \ "id").write[Long] ~
-    (__ \ "email").write[String] ~
-    (__ \ "firstName").write[String] ~
-    (__ \ "lastName").write[String]
-  )(user => (user.id, user.email, user.firstName, user.lastName))
+  implicit val writes: Writes[User] =
+    (
+      (__ \ "id").write[Long] ~
+      (__ \ "email").write[String] ~
+      (__ \ "firstName").write[String] ~
+      (__ \ "lastName").write[String]
+    )(user => (user.id, user.email, user.firstName, user.lastName))
+
+  implicit val reads: Reads[User] =
+    (
+      (__ \ "id").read[Long] ~
+      (__ \ "email").read[String] ~
+      (__ \ "firstName").read[String] ~
+      (__ \ "lastName").read[String]
+    )((id, email, firstName, lastName) => User(id, email, null, firstName, lastName)) //TODO Modify the model to remove the null password
 
   override val tableName = "users"
   override val columnNames = Seq("id", "email", "password", "first_name", "last_name")
@@ -70,16 +84,16 @@ object User extends SQLSyntaxSupport[User] with ShortenedNames {
   def create(email: String, password: String, firstName: String, lastName: String)
             (implicit session: AsyncDBSession, ctx: EC): Future[User] = {
 
-    val encryptedPassword: String = Crypto.encryptAES(password)
+    val hashpw: String = BCrypt.hashpw(password, BCrypt.gensalt())
 
     withSQL {
       insert.into(User).namedValues(
         column.email -> email,
-        column.password -> encryptedPassword,
+        column.password -> hashpw,
         column.firstName -> firstName,
         column.lastName -> lastName
       )
-    }.updateAndReturnGeneratedKey().future.map(User(_, email, encryptedPassword, firstName, lastName))
+    }.updateAndReturnGeneratedKey().future.map(User(_, email, hashpw, firstName, lastName))
   }
 
   def save(u: User)(implicit session: AsyncDBSession, ctx: EC): Future[User] = {

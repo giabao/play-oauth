@@ -5,6 +5,8 @@ import fr.njin.playoauth.common.domain.OauthToken
 import scala.concurrent.Future
 import org.joda.time.DateTime
 import scala.concurrent.duration.DurationInt
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 case class AuthToken(id:Long,
                      value: String,
@@ -28,6 +30,32 @@ case class AuthToken(id:Long,
 
 object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
 
+  implicit val writes: Writes[AuthToken] = (
+    (__ \ "id").write[Long] ~
+      (__ \ "value").write[String] ~
+      (__ \ "tokenType").write[String] ~
+      (__ \ "permission").writeNullable[Permission] ~
+      (__ \ "lifetime").write[Long] ~
+      (__ \ "revokedAt").writeNullable[DateTime] ~
+      (__ \ "refreshToken").writeNullable[String] ~
+      (__ \ "createdAt").write[DateTime]
+    )(token => (token.id, token.value, token.tokenType, token.permission, token.lifetime, token.revokedAt, token.refreshToken, token.createdAt))
+
+  implicit val reads: Reads[AuthToken] = (
+    (__ \ "id").read[Long] ~
+      (__ \ "value").read[String] ~
+      (__ \ "tokenType").read[String] ~
+      (__ \ "permission").readNullable[Permission] ~
+      (__ \ "lifetime").read[Long] ~
+      (__ \ "revokedAt").readNullable[DateTime] ~
+      (__ \ "refreshToken").readNullable[String] ~
+      (__ \ "createdAt").read[DateTime]
+    )(
+      (id, value, tokenType, permission, lifetime, revokedAt, refreshToken, createdAt) =>
+        AuthToken(id, value, tokenType, permission.map(_.id).getOrElse(0), permission, lifetime, revokedAt, refreshToken, createdAt)
+    )
+
+
   override val columnNames: Seq[String] = Seq("id", "value", "token_type", "permission_id", "lifetime", "revoked_at", "refresh_token", "created_at")
 
   def apply(t: ResultName[AuthToken])(rs: WrappedResultSet): AuthToken = new AuthToken(
@@ -46,12 +74,13 @@ object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
   def apply(t: SyntaxProvider[AuthToken], p: SyntaxProvider[Permission])(rs: WrappedResultSet): AuthToken =
     apply(t)(rs).copy(permission = Some(Permission(p)(rs)))
 
-  def apply(t: SyntaxProvider[AuthToken], p: SyntaxProvider[Permission], u: SyntaxProvider[User])(rs: WrappedResultSet): AuthToken =
-    apply(t)(rs).copy(permission = Some(Permission(p)(rs).copy(user = Some(User(u)(rs)))))
+  def apply(t: SyntaxProvider[AuthToken], p: SyntaxProvider[Permission], u: SyntaxProvider[User], a: SyntaxProvider[App])(rs: WrappedResultSet): AuthToken =
+    apply(t)(rs).copy(permission = Some(Permission(p, u, a)(rs)))
 
   lazy val t = AuthToken.syntax("t")
   private val p = Permission.p
   private val u = User.u
+  private val a = App.a
 
   def create(permission: Permission,
              value: String, tokenType: String, refreshToken: String,
@@ -97,9 +126,10 @@ object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
         .from(AuthToken as t)
           .innerJoin(Permission as p).on(t.permissionId, p.id)
           .innerJoin(User as u).on(p.userId, u.id)
+          .innerJoin(App as a).on(p.appId, a.pid)
         .where
           .eq(t.value, value)
-    }.map(AuthToken(t, p, u)).single().future()
+    }.map(AuthToken(t, p, u, a)).single().future()
 
   def findForRefreshToken(value: String)(implicit session: AsyncDBSession, cxt: EC): Future[Option[AuthToken]] =
     withSQL {

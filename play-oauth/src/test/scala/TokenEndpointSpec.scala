@@ -3,7 +3,6 @@ import fr.njin.playoauth.common.request.TokenResponse
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
 import play.api.libs.json.Json
-import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{ExecutionContext, Await}
 import Utils._

@@ -1,6 +1,5 @@
 import sbt._
 import sbt.Keys._
-import sbt.Tests.Setup
 
 object BuildSettings {
   val projectName = "play-oauth"
@@ -59,13 +58,6 @@ object Publish {
 object PlayOAuthBuild extends Build {
   import BuildSettings._
 
-  //See http://stackoverflow.com/questions/7898273/how-to-get-logging-working-in-scala-unit-tests-with-testng-slf4s-and-logback
-  val setupForSLF4J = Setup( cl =>
-    cl.loadClass("org.slf4j.LoggerFactory").
-      getMethod("getLogger",cl.loadClass("java.lang.String")).
-      invoke(null,"ROOT")
-  )
-
   lazy val commonResolvers = Seq(
     "Sonatype" at "http://oss.sonatype.org/content/groups/public/",
     "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/",
@@ -87,8 +79,7 @@ object PlayOAuthBuild extends Build {
       resolvers := commonResolvers,
       libraryDependencies ++= commonDependencies ++ Seq(
         "com.typesafe.play" %% "play-json" % "2.2.0"
-      ),
-      testOptions += setupForSLF4J
+      )
     )
   )
 
@@ -102,8 +93,7 @@ object PlayOAuthBuild extends Build {
         "com.typesafe.play" %% "play" % "2.2.0" cross CrossVersion.binary,
         "com.typesafe.play" %% "play-test" % "2.2.0" % "test" cross CrossVersion.binary,
         "com.github.theon" %% "scala-uri" % "0.4.0-SNAPSHOT" % "test"
-      ),
-      testOptions += setupForSLF4J
+      )
     )
   ).dependsOn(playOAuthCommon).aggregate(playOAuthCommon)
 }

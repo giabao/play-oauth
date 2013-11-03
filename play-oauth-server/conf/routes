@@ -24,6 +24,7 @@ POST        /apps/$id<[0-9]>/delete        controllers.Apps.doDelete(id: Long)
 GET         /oauth2/auth                   controllers.Authorization.authz(permission: Option[Long] ?= None)
 POST        /authorize                     controllers.Authorization.authorize
 POST        /oauth2/token                  controllers.Token.token
+GET         /oauth2/token                  controllers.Token.info(value: String)
 
 GET         /user/profile                  controllers.Users.profile
 GET         /user/apps                     controllers.Users.apps

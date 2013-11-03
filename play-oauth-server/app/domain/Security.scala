@@ -6,9 +6,8 @@ import play.api.mvc.SimpleResult
 import models.User
 import java.util.UUID
 import play.api.libs.Crypto
-import org.mindrot.jbcrypt.BCrypt
 import controllers.routes
-import scalikejdbc.async.{AsyncDBSession, AsyncDB}
+import scalikejdbc.async.AsyncDBSession
 import play.api.libs.iteratee.{Input, Done, Iteratee}
 
 /**
@@ -52,7 +51,7 @@ object Security {
     } yield (sessionId, email, password)).map(credentials =>
         User
           .findByEmail(Crypto.decryptAES(credentials._2))(session, ec)
-          .map(_.filter(u => BCrypt.checkpw(u.password, credentials._3)))(ec)
+          .map(_.filter(u => u.password.equals(Crypto.decryptAES(credentials._3))))(ec)
     ).getOrElse(Future.successful(None))
   }
 
@@ -64,9 +63,10 @@ object Security {
     def logIn(user:User, redirectUrl: String): Future[SimpleResult] = {
       Future.successful(Results.Redirect(redirectUrl).withNewSession
         .withSession(
-        "sessionId" -> UUID.randomUUID().toString,
-        "email" -> Crypto.encryptAES(user.email),
-        "password" -> BCrypt.hashpw(user.password, BCrypt.gensalt()))
+          "sessionId" -> UUID.randomUUID().toString,
+          "email" -> Crypto.encryptAES(user.email),
+          "password" -> Crypto.encryptAES(user.password)
+        )
       )
     }
 

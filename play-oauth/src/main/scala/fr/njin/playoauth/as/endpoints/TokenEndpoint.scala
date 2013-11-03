@@ -202,6 +202,29 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <:
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
     }
+
+  def info(token: String)
+          (authenticate: RequestHeader => Future[Option[C]])
+          (ok: TO => Future[SimpleResult])
+          (onUnauthorized: Future[SimpleResult] = Future.successful(Unauthorized("")),
+           onTokenNotFound: Future[SimpleResult] = Future.successful(NotFound("")),
+           onForbidden: Future[SimpleResult] = Future.successful(Forbidden("")))
+          (implicit ec: ExecutionContext): RequestHeader => Future[SimpleResult] = request => {
+
+    authenticate(request).flatMap {
+      _.fold(onUnauthorized) { client =>
+        tokenRepository.find(token).flatMap {
+          _.fold(onTokenNotFound) { token =>
+            if(token.client.id == client.id)
+              ok(token)
+            else
+              onForbidden
+          }
+        }
+      }
+    }
+
+  }
 }
 
 class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, P, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, P, C]](
