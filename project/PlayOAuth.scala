@@ -11,9 +11,9 @@ object BuildSettings {
     scalaVersion := "2.10.2",
     crossScalaVersions := Seq("2.10.2"),
     crossVersion := CrossVersion.binary
-  ) ++ Publish.settings 
-    //++ ScctPlugin.instrumentSettings 
-    //++ com.github.theon.coveralls.CoverallsPlugin.coverallsSettings
+  ) ++ Publish.settings ++
+    ScctPlugin.instrumentSettings ++
+    CoverallsPlugin.coverallsSettings
 }
 
 object Publish {

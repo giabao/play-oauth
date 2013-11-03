@@ -3,7 +3,6 @@ language: scala
 script: sbt ++$TRAVIS_SCALA_VERSION "test"
 after_script:
   - sbt coveralls
-#  - if [[ $TRAVIS_TEST_RESULT == 0 && "$TRAVIS_BRANCH" == "master" ]]; then sbt -Dbuild.publish.user="${SONATYPE_USER}" -Dbuild.publish.password="${SONATYPE_PASS}" ++$TRAVIS_SCALA_VERSION "publish-signed"; fi
 
 scala:
 - 2.10.2
@@ -11,12 +10,6 @@ scala:
 jdk:
 - oraclejdk7
 
-services:
-- redis
-
 env:
   global:
-  - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M
-    -XX:MaxPermSize=512M"
-  - secure: MJc3bv8ZusNOp8ENj7UtRtd10JjN7yCjL1rb1d6p5zAIMK90vFLQk8vf7vUmkCI6uBZgPbF6WA6xL0DDb8vVV77kFfnd70Zt3tvg6Bca8r9G0vOirNcgyl21zipkqyulDowZknTyCmSZaL18pYFz318jZqGU/L4qdsIz4jf1fN8=
-  - secure: DYul7inOiLhNfLOSHLBbcg0DOJM3FijfHHfX1NRpE18d7+nt9Z+NcmVbTI8ByC28k4Bn6XnuAZtU9nPuyBHq9RBclv2OZvqKgdWFXBdH31TnDTtS8v3XzaOnIXobFc4afD/SObpqLbScvRJfgMhHn9i+Bvpbhne3NAWmOgQvTcI=
+  - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M"
