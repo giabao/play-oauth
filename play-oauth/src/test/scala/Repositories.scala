@@ -7,14 +7,8 @@ class InMemoryOauthClientRepository[T <: OauthClient](var clients:Map[String, T]
 
 }
 
-class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T], val defaultScopes:Option[Seq[T]] = None) extends OauthScopeRepository[T] {
-
-  def defaults: Future[Option[Seq[T]]] = Future.successful(defaultScopes)
-
-  def find(id: String): Future[Option[T]] = Future.successful(scopes.get(id))
-
-  def find(id: String*): Future[Seq[(String,Option[T])]] = Future.successful(id.map(i => i -> scopes.get(i)))
-
+class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T]) extends OauthScopeRepository[T] {
+  def find(id: String*): Future[Map[String, T]] = Future.successful(scopes)
 }
 
 abstract class InMemoryOauthCodeRepository[CO <: OauthCode[RO, C], RO <: OauthResourceOwner, C <: OauthClient](var codes: Set[CO] = Set.empty[CO])

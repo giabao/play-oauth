@@ -61,7 +61,7 @@ object Oauth2Resource {
 
   }
 
-  def remoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
+  def basicAuthRemoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (url: String, username: String, password: String, queryParameter: String = "value")
     (fromResponse: Response => Option[TO])
     (implicit token: RequestHeader => Option[String],

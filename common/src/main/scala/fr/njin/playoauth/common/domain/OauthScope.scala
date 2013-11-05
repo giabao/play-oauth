@@ -17,9 +17,5 @@ class BasicOauthScope(val id: String,
                       val description: Option[String] = None) extends OauthScope
 
 trait OauthScopeRepository[T <: OauthScope] {
-  def defaults:Future[Option[Seq[T]]]
-
-  def find(id:String):Future[Option[T]]
-  def find(id:String*):Future[Seq[(String,Option[T])]]
-
+  def find(id:String*):Future[Map[String, T]]
 }

@@ -30,9 +30,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   def clientRepository: OauthClientRepository[C]
   def scopeRepository: OauthScopeRepository[SC]
   def codeFactory: OauthCodeFactory[CO, RO, C]
-  def codeRepository: OauthCodeRepository[CO, RO, C]
   def tokenFactory: OauthTokenFactory[TO, RO, C]
-  def tokenRepository: OauthTokenRepository[TO, RO, C]
   def supportedResponseType: Seq[String]
 
   type AuthzValidation =  (AuthzRequest, C) => ExecutionContext => Future[Option[Map[String, Seq[String]]]]
@@ -44,8 +42,8 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   val scopeValidation:AuthzValidation = (authzRequest, client) => implicit ec => {
     authzRequest.scope.map[Future[Option[Map[String, Seq[String]]]]]{ scope =>
         scopeRepository.find(scope : _*).map{ scopes =>
-          val errors = scopes.filterNot(_._2.isDefined)
-          if(errors.isEmpty) None else Some(InvalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.map(e => e._1).mkString(" ")))))
+          val errors = scope.filterNot(scopes.get(_).isDefined)
+          if(errors.isEmpty) None else Some(InvalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.mkString(" ")))))
         }
     }.getOrElse(Future.successful(None))
   }
@@ -173,9 +171,7 @@ class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[
   val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],
   val codeFactory: OauthCodeFactory[CO, RO, C],
-  val codeRepository: OauthCodeRepository[CO, RO, C],
   val tokenFactory: OauthTokenFactory[TO, RO, C],
-  val tokenRepository: OauthTokenRepository[TO, RO, C],
   val supportedResponseType: Seq[String] = OAuth.ResponseType.All
 ) extends Authorization[C, SC, CO, RO, P, TO]
 

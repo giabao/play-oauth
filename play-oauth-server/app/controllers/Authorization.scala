@@ -1,6 +1,6 @@
 package controllers
 
-import play.api.mvc.{EssentialAction, Action, Controller}
+import play.api.mvc.{Action, Controller}
 import models._
 import fr.njin.playoauth.as.endpoints.AuthorizationEndpoint
 import fr.njin.playoauth.as.endpoints.Constraints._
@@ -14,7 +14,6 @@ import play.api.data.Form
 import play.api.data.Forms._
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.AuthzRequest
-import play.api.libs.iteratee.{Done, Input, Iteratee}
 import domain.oauth2._
 import scala.Some
 
@@ -42,19 +41,18 @@ object Authorization extends Controller {
 
   def authz(permission:Option[Long]) = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
-      EssentialAction { request =>
-        Iteratee.flatten(
-          new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
-            (ar, c) => implicit r => Future.failed(new Exception()),
-            (ar, c) => implicit r => {
-              Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scope, ar.redirectUri, ar.state)))))
-            }
-          ).apply(request).map(Done(_, Input.Empty))
-        )
+      Action.async(parse.empty) { request =>
+        new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
+          (ar, c) => implicit r => Future.failed(new Exception()),
+          (ar, c) => implicit r => {
+            Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scope, ar.redirectUri, ar.state)))))
+          }
+        ).apply(request)
       }
     }
   }
 
+  // FIXME Use a CRSF filter otherwise the client can steal a permission by making a direct post
   def authorize = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
       Action.async { implicit request =>
@@ -92,9 +90,7 @@ class AuthorizationEndpointController(lastPermission: Option[Long])(implicit val
   extends AuthorizationEndpoint[App, BasicOauthScope, AuthCode, User, Permission, AuthToken] (
   new OwnerPermissions(lastPermission),
   new AppRepository(),
-  new InMemoryOauthScopeRepository[BasicOauthScope](Map("basic" -> new BasicOauthScope("basic"))),
+  new InMemoryOauthScopeRepository[BasicOauthScope](Seq(new BasicOauthScope("basic")).map(s => s.id -> s).toMap),
   new AuthCodeFactory(),
-  new AuthCodeRepository(),
-  new AuthTokenFactory(),
-  new AuthTokenRepository()
+  new AuthTokenFactory()
 )

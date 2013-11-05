@@ -45,8 +45,6 @@ object Token extends Controller {
 class TokenEndpointController(implicit val session:AsyncDBSession, ec: ExecutionContext)
   extends TokenEndpoint[App, BasicOauthScope, AuthCode, User, Permission, AuthToken](
     new AppRepository(),
-    new InMemoryOauthScopeRepository[BasicOauthScope](Map("basic" -> new BasicOauthScope("basic"))),
-    new AuthCodeFactory(),
     new AuthCodeRepository(),
     new AuthTokenFactory(),
     new AuthTokenRepository()

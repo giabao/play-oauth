@@ -18,7 +18,7 @@ object BuildSettings {
 
 object Publish {
   object TargetRepository {
-    def sonatype: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
+    def sonatype: Def.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
       val nexus = "https://oss.sonatype.org/"
       if (version.trim.endsWith("SNAPSHOT"))
         Some("snapshots" at nexus + "content/repositories/snapshots")

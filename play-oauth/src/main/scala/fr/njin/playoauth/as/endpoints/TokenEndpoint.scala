@@ -55,8 +55,6 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: Oa
   val logger:Logger = TokenEndpoint.logger
 
   def clientRepository: OauthClientRepository[C]
-  def scopeRepository: OauthScopeRepository[SC]
-  def codeFactory: OauthCodeFactory[CO, RO, C]
   def codeRepository: OauthCodeRepository[CO, RO, C]
   def tokenFactory: OauthTokenFactory[TO, RO, C]
   def tokenRepository: OauthTokenRepository[TO, RO, C]
@@ -135,6 +133,7 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: Oa
 
   def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
            (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+
     token(perform(owner, clientOwner))
 
   def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] = implicit request => {
@@ -229,8 +228,6 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: Oa
 
 class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val clientRepository: OauthClientRepository[C],
-  val scopeRepository: OauthScopeRepository[SC],
-  val codeFactory: OauthCodeFactory[CO, RO, C],
   val codeRepository: OauthCodeRepository[CO, RO, C],
   val tokenFactory: OauthTokenFactory[TO, RO, C],
   val tokenRepository: OauthTokenRepository[TO, RO, C],

@@ -39,21 +39,9 @@ class AuthCodeRepository(implicit session:AsyncDBSession, ec: ExecutionContext) 
   }
 }
 
-class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T], val defaultScopes:Option[Seq[T]] = None) extends OauthScopeRepository[T] {
+class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T]) extends OauthScopeRepository[T] {
 
-  def defaults: Future[Option[Seq[T]]] = Future.successful(defaultScopes)
+  def find(id: String*): Future[Map[String, T]] = Future.successful(scopes)
 
-  def find(id: String): Future[Option[T]] = Future.successful(scopes.get(id))
-
-  def find(id: String*): Future[Seq[(String,Option[T])]] = Future.successful(id.map(i => i -> scopes.get(i)))
-
-  def save(scope: T): Future[T] = Future.successful {
-    scopes += (scope.id -> scope)
-    scope
-  }
-
-  def delete(scope: T): Future[Unit] = Future.successful {
-    scopes -= scope.id
-  }
 }
 
