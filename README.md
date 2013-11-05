@@ -272,7 +272,7 @@ def scoped[U](scopes: String*)(action: U => EssentialAction)
               ec: ExecutionContext = scala.concurrent.ExecutionContext.global): EssentialAction
 ```
 
-This method extract the resource owner from the request using the `resourceOwner` parameter. It is with this function that you extract the token from the request, verify the validity of the scope and get the user of the token. `Oauth2Resource` provides a function for this process, you just have to provide a way to retrieve the token value from the request (See some helpers in [play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala](play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala), particularly the `parseBearer` function) and to retrieve the token locally with your tokenRepository or remotely using a WS call.
+This method extracts the resource owner from the request using the `resourceOwner` parameter. It is with this function that you extract the token from the request, verify the validity of the scope and get the user of the token. `Oauth2Resource` provides a function for this process, you just have to provide a way to retrieve the token value from the request (See some helpers in [play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala](play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala), particularly the `parseBearer` function) and to retrieve the token locally with your tokenRepository or remotely using a WS call.
 
 See an example from the sample where we use `Oauth2Resource` to create `[Resource](play-oauth-server/app/domain/oauth2/Resource.scala)` object to protect the [API](play-oauth-server/app/controllers/API.scala)
 
