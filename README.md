@@ -262,7 +262,7 @@ def authenticate(id: String, secret: String): Future[Either[Option[App], OauthEr
 
 ### Resource protection
 
-play-oauth give you a helper to protect your resource. The `Oauth2Resource` object has a method `scoped` that you can compose with your action to get the resource owner for the request.
+play-oauth gives you a helper to protect your resource. The `Oauth2Resource` object has a method `scoped` that you can compose with your action to get the resource owner for the request.
 
 ```scala
 def scoped[U](scopes: String*)(action: U => EssentialAction)
