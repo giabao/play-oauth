@@ -212,7 +212,7 @@ def authz = Action.async { request =>
 
 #### Token Endpoint
 
-To create your token endpoint, instantiate a `TokenEndpoint` and call the `token` method in your action after implementing the `authenticate` method. This method is use to authenticate the client of the request. See [Client Authentication section](#client_authentication) 
+To create your token endpoint, instantiate a `TokenEndpoint` and call the `token` method in your action after implementing the `authenticate` method. This method is use to authenticate the client of the request. See [Client Authentication section](#client-authentication) 
 
 ```scala
 def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
