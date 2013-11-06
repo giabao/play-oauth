@@ -69,6 +69,7 @@ object OAuth {
     val UnsupportedResponseType = "unsupported_response_type"
     val UnsupportedGrantType = "unsupported_grant_type"
     val InvalidScope = "invalid_scope"
+    val ServerError = "server_error"
   }
 
 }

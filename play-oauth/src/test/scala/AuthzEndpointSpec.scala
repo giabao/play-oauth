@@ -1,10 +1,10 @@
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.AnyContentAsEmpty
+import play.api.mvc.{Results, SimpleResult, AnyContentAsEmpty}
 import play.api.test._
 import play.api.test.Helpers._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 import com.github.theon.uri.Uri.parse
 import Utils._
 
@@ -131,6 +131,25 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
       status(r) must equalTo(BAD_REQUEST)
       contentAsString(r) must equalTo(OAuth.ErrorRedirectURIMissing)
     }
+
+    """The authorization server encountered an unexpected
+       condition that prevented it from fulfilling the request.
+       (This error code is needed because a 500 Internal Server
+       Error HTTP status code cannot be returned to the client
+       via an HTTP redirect.)""" in new EndPointWithClients {
+
+      import ExecutionContext.Implicits.global
+
+      val r = authzEndpoint.authorize(r => throw new Exception())(
+        (ar,c) => r => Future.successful(Results.Unauthorized("")),
+        (ar,c) => r => Future.successful(Results.Forbidden(""))
+      ).apply(OauthFakeRequest(
+        OAuth.OauthClientId -> ClientWithURI,
+        OAuth.OauthResponseType -> OAuth.ResponseType.Code,
+        OAuth.OauthState -> AuthorizationState
+      ))
+      checkError(r, OAuth.ErrorCode.ServerError)
+    }
   }
 
   """ If the resource owner denies the access request or if the request
@@ -203,18 +222,21 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidScope, test._2))
   }
 
+  def checkError(result: Future[SimpleResult], waitingCode: String) = {
+    status(result) must equalTo(FOUND)
+    val redirection = redirectLocation(result)
+    (redirection must not).beNone
+    val parsed = parse(redirection.get)
+    url(parsed) must equalTo(RedirectURI)
+    val query = parsed.query
+    query.param(OAuth.OauthError) must beSome(waitingCode)
+  }
+
   def invalidRequest(name:String, waitingCode: String, requests: Seq[FakeRequest[AnyContentAsEmpty.type]])(implicit ec:ExecutionContext) = {
     name in new EndPointWithClients {
-      requests.map{ request =>
-        val r = authz.apply(request)
-        status(r) must equalTo(FOUND)
-        val redirection = redirectLocation(r)
-        (redirection must not).beNone
-        val parsed = parse(redirection.get)
-        url(parsed) must equalTo(RedirectURI)
-        val query = parsed.query
-        query.param(OAuth.OauthError) must beSome(waitingCode)
-      }
+      requests.map{request => checkError(authz.apply(request), waitingCode)}
     }
   }
+
+
 }

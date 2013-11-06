@@ -63,26 +63,35 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   def queryWithState(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
      state.map(s => query + (OAuth.OauthState -> Seq(s))).getOrElse(query)
 
-  def onFormError(f:Form[AuthzRequest])(implicit request:RequestHeader, ec:ExecutionContext) = {
+
+  def onError(f:Form[AuthzRequest], toQuery: Form[AuthzRequest] => Map[String, Seq[String]])(implicit request:RequestHeader, ec:ExecutionContext) = {
     f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
       .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
       .getOrElse {
-      val id = f(OAuth.OauthClientId).value.get
-      clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
+        val id = f(OAuth.OauthClientId).value.get
+        clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
 
-        def responseTo(uri: Option[String]) =  uri.fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
-          Redirect(url, errorToQuery(f), FOUND)
-        }
+          def responseTo(uri: Option[String]) =  uri.fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
+            Redirect(url, toQuery(f), FOUND)
+          }
 
-        (f(OAuth.OauthResponseType).value, f(OAuth.OauthRedirectUri).value) match {
-          case ((Some(OAuth.ResponseType.Token), Some(uri))) =>
-            if (client.redirectUris.exists(_.contains(uri))) responseTo(Some(uri)) else BadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
-          case ((Some(OAuth.ResponseType.Code)), uri) => responseTo(uri.orElse(client.redirectUri))
-          case _ => responseTo(client.redirectUri)
-        }
+          (f(OAuth.OauthResponseType).value, f(OAuth.OauthRedirectUri).value) match {
+            case ((Some(OAuth.ResponseType.Token), Some(uri))) =>
+              if (client.redirectUris.exists(_.contains(uri))) responseTo(Some(uri)) else BadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
+            case ((Some(OAuth.ResponseType.Code)), uri) => responseTo(uri.orElse(client.redirectUri))
+            case _ => responseTo(client.redirectUri)
+          }
 
       })
     }
+  }
+
+  def onFormError(f:Form[AuthzRequest])(implicit request:RequestHeader, ec:ExecutionContext) = {
+    onError(f, errorToQuery)
+  }
+
+  def onServerError(f:Form[AuthzRequest], error: Throwable)(implicit request:RequestHeader, ec:ExecutionContext) = {
+    onError(f, f => queryWithState(ServerError() ,f(OAuth.OauthState).value))
   }
 
   def onAuthzRequest(authzRequest: AuthzRequest)(f:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])(implicit request:RequestHeader, ec:ExecutionContext) = {
@@ -111,7 +120,9 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
 
     Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
       form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-    }.getOrElse(form).fold(onFormError, onAuthzRequest(_)(f))
+    }.getOrElse(form).fold(onFormError, onAuthzRequest(_)(f)).recoverWith {
+      case t:Throwable => onServerError(form, t)
+    }
 
   }
 

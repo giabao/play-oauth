@@ -25,5 +25,6 @@ object OauthError {
   def InvalidScopeError(errorDescription:Option[String] = None, errorUri:Option[String] = None) = OauthError(OAuth.ErrorCode.InvalidScope, errorDescription, errorUri)
   def AccessDeniedError(errorDescription:Option[String] = None, errorUri:Option[String] = None) = OauthError(OAuth.ErrorCode.AccessDenied, errorDescription, errorUri)
   def UnsupportedResponseTypeError(errorDescription:Option[String] = None, errorUri:Option[String] = None) = OauthError(OAuth.ErrorCode.UnsupportedResponseType, errorDescription, errorUri)
+  def ServerError(errorDescription:Option[String] = None, errorUri:Option[String] = None) = OauthError(OAuth.ErrorCode.ServerError, errorDescription, errorUri)
   
 }

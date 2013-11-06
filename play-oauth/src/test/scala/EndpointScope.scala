@@ -22,7 +22,6 @@ object User extends OauthResourceOwnerPermission[User, BasicOauthClient, BasicOA
 
 trait Endpoint extends Scope {
 
-
   val timeout = 1.seconds
 
   lazy val user:Option[User] = None
