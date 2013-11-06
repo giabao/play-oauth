@@ -2,8 +2,10 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
+
   val projectName = "play-oauth"
   val buildVersion = "1.0.0-SNAPSHOT"
+  val playVersion = "2.2.0"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "fr.njin",
@@ -78,7 +80,7 @@ object PlayOAuthBuild extends Build {
     settings = buildSettings ++ Seq(
       resolvers := commonResolvers,
       libraryDependencies ++= commonDependencies ++ Seq(
-        "com.typesafe.play" %% "play-json" % "2.2.0"
+        "com.typesafe.play" %% "play-json" % playVersion
       )
     )
   )
@@ -90,8 +92,8 @@ object PlayOAuthBuild extends Build {
       resolvers := commonResolvers,
       libraryDependencies ++= commonDependencies ++ Seq(
         "commons-validator" % "commons-validator" % "1.4.0",
-        "com.typesafe.play" %% "play" % "2.2.0" cross CrossVersion.binary,
-        "com.typesafe.play" %% "play-test" % "2.2.0" % "test" cross CrossVersion.binary,
+        "com.typesafe.play" %% "play" % playVersion cross CrossVersion.binary,
+        "com.typesafe.play" %% "play-test" % playVersion % "test" cross CrossVersion.binary,
         "com.github.theon" %% "scala-uri" % "0.4.0-SNAPSHOT" % "test"
       )
     )
@@ -129,7 +131,7 @@ object PlayAuthServerBuild extends Build {
       version := "1.0.0-SNAPSHOT",
       resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
       libraryDependencies ++= Seq(
-        "com.typesafe.play" %% "play" % "2.2.0" % "provided",
+        "com.typesafe.play" %% "play" % playVersion % "provided",
         "com.googlecode.flyway" % "flyway-core" % "2.1.1",
         "org.scalatest" %% "scalatest" % "1.9.1" % "test"
       ),
