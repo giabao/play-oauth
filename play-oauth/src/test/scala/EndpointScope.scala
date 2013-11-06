@@ -73,10 +73,10 @@ trait EndPointWithClients extends Endpoint {
 
   import Constants._
 
-  val ownerAuthorizedClient = new BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code, OAuth.ResponseType.Token), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  val ownerUnauthorizedClient = new BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  val clientWithCode = new BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  val anotherClientWithCode = new BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, Some(Seq(RedirectURI)))
+  lazy val ownerAuthorizedClient = new BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code, OAuth.ResponseType.Token), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  lazy val ownerUnauthorizedClient = new BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  lazy val clientWithCode = new BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  lazy val anotherClientWithCode = new BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, Some(Seq(RedirectURI)))
 
 
   override lazy val user: Option[User] = Some(User(Username, Password,
