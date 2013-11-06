@@ -4,10 +4,6 @@ import play.api.mvc.RequestHeader
 import org.apache.commons.codec.binary.Base64
 
 
-/**
- * User: bathily
- * Date: 24/09/13
- */
 object Utils {
 
   def toUrlFragment(query: Map[String, Seq[String]]): String = {

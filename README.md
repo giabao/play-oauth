@@ -334,6 +334,12 @@ To run the sample, you need a MySQL database.
 
 Don't forget to edit the configuration file for your database settings.
 
+Scaladoc
+
+- sbt
+- unidoc
+
+The scala doc is generated in play-oauth/target/scala.../unidoc/
 
 
 

@@ -2,17 +2,56 @@ package fr.njin.playoauth.common.domain
 
 import scala.concurrent.Future
 
+/**
+ * Represents the oauth2 token
+ *
+ * @tparam RO Type of the resource owner
+ * @tparam C Type of the client
+ */
 trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
 
+  /**
+   * @return the resource owner of the token
+   */
   def owner: RO
+
+  /**
+   * @return the client of the token
+   */
   def client: C
 
+  /**
+   * @return the value of the token
+   */
   def accessToken: String
+
+  /**
+   * @return the type of the token. Ex: Bearer
+   */
   def tokenType: String
+
+  /**
+   * @return true if the token is revoked
+   *
+   * The authorization endpoint revoke a token just before
+   * issuing a new one from the refresh token value
+   */
   def revoked: Boolean
+
+  /**
+   * @return the life time of the token in milliseconds
+   */
   def expiresIn: Option[Long]
+
+  /**
+   * @return the refresh token value of the token
+   */
   def refreshToken: Option[String]
-  def scope: Option[Seq[String]]
+
+  /**
+   * @return the scope of the token
+   */
+  def scopes: Option[Seq[String]]
 
 }
 
@@ -36,4 +75,4 @@ class BasicOauthToken[RO <: OauthResourceOwner, C <: OauthClient](
                       val revoked: Boolean = false,
                       val expiresIn: Option[Long] = None,
                       val refreshToken: Option[String] = None,
-                      val scope: Option[Seq[String]] = None) extends OauthToken[RO, C]
+                      val scopes: Option[Seq[String]] = None) extends OauthToken[RO, C]

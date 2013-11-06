@@ -20,7 +20,7 @@ case class Permission(id: Long,
                       appId: Long,
                       app: Option[App] = None,
                       decision: Boolean,
-                      scope: Option[Seq[String]],
+                      scopes: Option[Seq[String]],
                       redirectUri: Option[String],
                       state: Option[String],
                       createdAt: DateTime,
@@ -39,12 +39,12 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
       (__ \ "user").writeNullable[User] ~
       (__ \ "appId").write[Long] ~
       (__ \ "decision").write[Boolean] ~
-      (__ \ "scope").writeNullable[Seq[String]] ~
+      (__ \ "scopes").writeNullable[Seq[String]] ~
       (__ \ "redirectUri").writeNullable[String] ~
       (__ \ "state").writeNullable[String] ~
       (__ \ "createdAt").write[DateTime] ~
       (__ \ "revokedAt").writeNullable[DateTime]
-    )(p => (p.id, p.user, p.appId, p.decision, p.scope, p.redirectUri, p.state, p.createdAt, p.revokedAt))
+    )(p => (p.id, p.user, p.appId, p.decision, p.scopes, p.redirectUri, p.state, p.createdAt, p.revokedAt))
 
   implicit val reads: Reads[Permission] =
     (
@@ -52,7 +52,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
       (__ \ "user").readNullable[User] ~
       (__ \ "appId").read[Long] ~
       (__ \ "decision").read[Boolean] ~
-      (__ \ "scope").readNullable[Seq[String]] ~
+      (__ \ "scopes").readNullable[Seq[String]] ~
       (__ \ "redirectUri").readNullable[String] ~
       (__ \ "state").readNullable[String] ~
       (__ \ "createdAt").read[DateTime] ~
@@ -62,7 +62,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
     )
 
 
-  override val columnNames: Seq[String] = Seq("id", "user_id", "app_id", "decision", "scope", "redirect_uri", "state", "created_at", "revoked_at")
+  override val columnNames: Seq[String] = Seq("id", "user_id", "app_id", "decision", "scopes", "redirect_uri", "state", "created_at", "revoked_at")
 
   def apply(p: ResultName[Permission])(rs: WrappedResultSet): Permission = new Permission(
     id = rs.long(p.id),
@@ -70,7 +70,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
     appId = rs.long(p.appId),
     //TODO Check the doc for boolean mapping
     decision = rs.int(p.decision) == 1,
-    scope = rs.stringOpt(p.scope).map(_.split(" ")),
+    scopes = rs.stringOpt(p.scopes).map(_.split(" ")),
     redirectUri = rs.stringOpt(p.redirectUri),
     state = rs.stringOpt(p.state),
     createdAt = rs.timestamp(p.createdAt).toDateTime,
@@ -145,7 +145,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
     }.map(Permission(p, a)).list().future()
 
 
-  def create(user: User, app: App, decision: Boolean, scope: Option[Seq[String]], redirectUri: Option[String],
+  def create(user: User, app: App, decision: Boolean, scopes: Option[Seq[String]], redirectUri: Option[String],
              state: Option[String], createdAt: DateTime = DateTime.now(), revokedAt: Option[DateTime] = None)
             (implicit session: AsyncDBSession, ec: EC): Future[Permission] = {
     withSQL {
@@ -153,7 +153,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
         column.userId -> user.id,
         column.appId -> app.pid,
         column.decision -> decision,
-        column.scope -> scope.map(_.mkString(" ")),
+        column.scopes -> scopes.map(_.mkString(" ")),
         column.redirectUri -> redirectUri,
         column.state -> state,
         column.createdAt -> createdAt,
@@ -167,7 +167,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
         appId = app.pid,
         app = Some(app),
         decision = decision,
-        scope = scope,
+        scopes = scopes,
         redirectUri = redirectUri,
         state = state,
         createdAt = createdAt,

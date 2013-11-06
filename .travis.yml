@@ -1,6 +1,6 @@
 language: scala
 
-script: sbt ++$TRAVIS_SCALA_VERSION "project play-oauth" "test"
+script: sbt ++$TRAVIS_SCALA_VERSION "test"
 after_script:
   - sbt coveralls
 

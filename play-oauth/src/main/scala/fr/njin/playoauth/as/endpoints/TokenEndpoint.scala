@@ -187,7 +187,7 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: Oa
           tokenRepository.findForRefreshToken(t.refreshToken).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorClientNotFound))))))){ previousToken =>
             for {
               Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)
-              token <- issueAToken(revoked.owner, revoked.client, None, revoked.scope)
+              token <- issueAToken(revoked.owner, revoked.client, None, revoked.scopes)
             } yield token
           })
 

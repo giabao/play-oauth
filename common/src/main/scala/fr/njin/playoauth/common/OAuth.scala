@@ -1,12 +1,11 @@
 package fr.njin.playoauth.common
 import scala.concurrent.duration._
 
-/**
- * User: bathily
- * Date: 17/09/13
- */
 object OAuth {
 
+  /**
+   * The recommended maximum authorization code lifetime
+   */
   val MaximumLifetime = 10.minutes
 
   object ResponseType {

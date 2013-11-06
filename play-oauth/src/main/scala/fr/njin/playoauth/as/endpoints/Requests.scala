@@ -12,12 +12,6 @@ import play.api.data.FormError
 import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
 import fr.njin.playoauth.common.request.RefreshTokenRequest
 
-/**
- * User: bathily
- * Date: 17/09/13
- */
-
-
 object Requests {
 
   def splitStringFormatter(sep: String): Formatter[Seq[String]] = new Formatter[Seq[String]] {

@@ -36,7 +36,7 @@ create table permission (
   user_id bigint not null,
   app_id bigint not null,
   decision boolean not null,
-  scope text, #white space separated string
+  scopes text, #white space separated string
   redirect_uri text,
   state text,
   created_at datetime not null,

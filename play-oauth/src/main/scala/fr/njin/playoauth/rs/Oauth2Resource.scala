@@ -35,7 +35,7 @@ object Oauth2Resource {
 
     scopes => request => {
       token(request).map(tokenRepository(_).map(_.fold[Either[Option[U], Seq[String]]](Left(None)){token =>
-        token.scope.map(tokenScopes => scopes.filter(tokenScopes.contains(_))).filter(_.isEmpty).toRight(Some(token.owner))
+        token.scopes.map(tokenScopes => scopes.filter(tokenScopes.contains(_))).filter(_.isEmpty).toRight(Some(token.owner))
       })).getOrElse(Future.successful(Left(None)))
     }
 

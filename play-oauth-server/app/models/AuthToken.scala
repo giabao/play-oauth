@@ -22,7 +22,7 @@ case class AuthToken(id:Long,
   def client: App = permission.flatMap(_.app).orNull
   def owner: User = permission.flatMap(_.user).orNull
   def revoked: Boolean = permission.exists(_.revokedAt.isDefined) || revokedAt.isDefined
-  def scope: Option[Seq[String]] = permission.flatMap(_.scope)
+  def scopes: Option[Seq[String]] = permission.flatMap(_.scopes)
   def expiresIn: Option[Long] = Some(lifetime)
 
   def revoke(implicit session: AsyncDBSession, ctx: EC): Future[AuthToken] = AuthToken.revoke(this)

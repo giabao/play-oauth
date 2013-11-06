@@ -3,6 +3,9 @@ package fr.njin.playoauth.common.request
 import fr.njin.playoauth.common.OAuth
 
 
+/**
+ * Represents a token request
+ */
 trait TokenRequest {
   def grantType:String
 }

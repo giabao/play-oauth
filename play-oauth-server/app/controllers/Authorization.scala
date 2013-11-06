@@ -45,7 +45,7 @@ object Authorization extends Controller {
         new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
           (ar, c) => implicit r => Future.failed(new Exception()),
           (ar, c) => implicit r => {
-            Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scope, ar.redirectUri, ar.state)))))
+            Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scopes, ar.redirectUri, ar.state)))))
           }
         ).apply(request)
       }
