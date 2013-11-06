@@ -1,6 +1,6 @@
 resolvers ++= Seq(
-  Classpaths.typesafeReleases,
-  Classpaths.typesafeSnapshots,
+  "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
+  "Typesafe Snapshots" at "http://repo.typesafe.com/typesafe/snapshots/",
   "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/",
   "scct-github-repository" at "http://mtkopone.github.com/scct/maven-repo"
 )
