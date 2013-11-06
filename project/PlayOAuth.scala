@@ -1,5 +1,11 @@
 import sbt._
 import sbt.Keys._
+import sbtunidoc.Plugin._
+import UnidocKeys._
+import com.typesafe.sbt.SbtGit.{GitKeys => git}
+import com.typesafe.sbt.SbtSite._
+import com.typesafe.sbt.SbtSite._
+import com.typesafe.sbt.SbtGhPages._
 
 object BuildSettings {
 
