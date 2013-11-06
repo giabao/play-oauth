@@ -106,6 +106,7 @@ object PlayOAuthBuild extends Build {
   ).dependsOn(playOAuthCommon).aggregate(playOAuthCommon)
 
   lazy val root = project.in(file("."))
+    .settings(buildSettings: _*)
     .settings(unidocSettings: _*)
     .settings(site.settings ++ ghpages.settings: _*)
     .settings(
