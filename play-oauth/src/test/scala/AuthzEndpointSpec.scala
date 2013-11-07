@@ -194,9 +194,15 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.UnauthorizedClient, test._2))
 
     Seq(
-      "The resource owner or authorization server denied the request." -> Seq(
+      "The resource owner denied the request." -> Seq(
         OauthFakeRequest(
           OAuth.OauthClientId -> UnauthorizedClient,
+          OAuth.OauthResponseType -> OAuth.ResponseType.Code
+        )
+      ),
+      "The authorization server denied the request." -> Seq(
+        OauthFakeRequest(
+          OAuth.OauthClientId -> BlockedClient,
           OAuth.OauthResponseType -> OAuth.ResponseType.Code
         )
       )

@@ -73,17 +73,18 @@ trait EndPointWithClients extends Endpoint {
 
   import Constants._
 
-  lazy val ownerAuthorizedClient = new BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code, OAuth.ResponseType.Token), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  lazy val ownerUnauthorizedClient = new BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  lazy val clientWithCode = new BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
-  lazy val anotherClientWithCode = new BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, Some(Seq(RedirectURI)))
+  val ownerAuthorizedClient = new BasicOauthClient(ClientWithURI, ClientWithURI, Seq(OAuth.ResponseType.Code, OAuth.ResponseType.Token), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  val ownerUnauthorizedClient = new BasicOauthClient(ClientWithURIUnauthorized, ClientWithURIUnauthorized, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  val anotherOwnerUnauthorizedClient = new BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  val clientWithCode = new BasicOauthClient(ClientWithCode, ClientWithCode, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)))
+  val anotherClientWithCode = new BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, Some(Seq(RedirectURI)))
 
 
   override lazy val user: Option[User] = Some(User(Username, Password,
     (Seq(
       new BasicOAuthPermission[BasicOauthClient](true, ownerAuthorizedClient, None, None),
       new BasicOAuthPermission[BasicOauthClient](false, ownerUnauthorizedClient, None, None),
-      new BasicOAuthPermission[BasicOauthClient](false, new BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI))), None, None),
+      new BasicOAuthPermission[BasicOauthClient](false, anotherOwnerUnauthorizedClient, None, None),
       new BasicOAuthPermission[BasicOauthClient](true, clientWithCode, None, None),
       new BasicOAuthPermission[BasicOauthClient](true, anotherClientWithCode, None, None)
     ) map (p => p.client -> p)).toMap
@@ -101,8 +102,9 @@ trait EndPointWithClients extends Endpoint {
       new BasicOauthClient(ClientWithoutURI, ClientWithoutURI, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode)),
       ownerAuthorizedClient,
       ownerUnauthorizedClient,
+      anotherOwnerUnauthorizedClient,
       new BasicOauthClient(ClientWithInvalidURI, ClientWithInvalidURI, Seq(), Seq(), Some(Seq(InvalidURI))),
-      new BasicOauthClient(UnauthorizedClient, UnauthorizedClient, Seq(), Seq(), Some(Seq(RedirectURI)), authorized = false),
+      new BasicOauthClient(BlockedClient, BlockedClient, Seq(OAuth.ResponseType.Code), Seq(OAuth.GrantType.AuthorizationCode), Some(Seq(RedirectURI)), authorized = false),
       new BasicOauthClient(ImplicitGrantClientWithURI, ImplicitGrantClientWithURI, Seq(OAuth.ResponseType.Token), Seq(OAuth.GrantType.ClientCredentials), Some(Seq(RedirectURI))),
       clientWithCode,
       anotherClientWithCode

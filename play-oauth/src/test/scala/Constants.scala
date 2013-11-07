@@ -17,6 +17,7 @@ object Constants {
   val ClientWithURIUnauthorized = "4.1.2.1"
   val ClientWithInvalidURI = "4.1.3.1"
   val UnauthorizedClient = "4.1.3.2"
+  val BlockedClient = "4.1.3.3"
   val ClientWithCode = "4.1.4"
   val AnotherClientWithCode = "4.1.4.1"
 
