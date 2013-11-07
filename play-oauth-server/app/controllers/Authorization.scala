@@ -39,11 +39,20 @@ object Authorization extends Controller {
     )(PermissionForm.apply)(PermissionForm.unapply)
   )
 
+  /**
+   * Authorization endpoint call
+   *
+   * @param permission id of the newly created permission.
+   *                   Provided by [[authorize]]'s redirection
+   * @return
+   */
   def authz(permission:Option[Long]) = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
       Action.async(parse.empty) { request =>
         new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
+          //this can't happen because this action is executed with an user in the context
           (ar, c) => implicit r => Future.failed(new Exception()),
+          //If unauthorized, we show a permission form to the user
           (ar, c) => implicit r => {
             Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scopes, ar.redirectUri, ar.state)))))
           }
@@ -52,7 +61,12 @@ object Authorization extends Controller {
     }
   }
 
-  // FIXME Use a CRSF filter otherwise the client can steal a permission by making a direct post
+  /**
+   * Create the permission then redirect to [[authz]]
+   * to finish the authorization process.
+   * @return
+   */
+  // FIXME The client can steal a permission by making a direct post
   def authorize = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
       Action.async { implicit request =>
@@ -77,20 +91,43 @@ object Authorization extends Controller {
   }
 }
 
+/**
+ * Our permission provider for the authorization endpoint
+ *
+ * This provider search the last created and non revoked permission for
+ * the user and the client. If the found permission is not granted and
+ * is not the lastPermission, the provider filters the permission
+ * in order to allow the endpoint to ask another one to the user
+ *
+ * @param lastPermission
+ * @param session the database session
+ * @param ec the database execution context
+ */
 class OwnerPermissions(lastPermission: Option[Long])(implicit session:AsyncDBSession, ec: ExecutionContext)
   extends OauthResourceOwnerPermission[User, App, Permission]{
 
   def apply(user: User, client: App): Future[Option[Permission]] = Permission.find(user, client).map(_.flatMap { p =>
+    //If not granted and is not lastPermission, return None
     if(!p.decision) lastPermission.flatMap(id => if(id != p.id) None else Some(p))
     else Some(p)
   })
 }
 
+/**
+ * We need a custom authorization endpoint because
+ * we need to pass the database session and the
+ * database execution context to all our
+ * repositories and factories
+ *
+ * @param lastPermission
+ * @param session the database session
+ * @param ec the database execution context
+ */
 class AuthorizationEndpointController(lastPermission: Option[Long])(implicit val session:AsyncDBSession, ec: ExecutionContext)
   extends AuthorizationEndpoint[App, BasicOauthScope, AuthCode, User, Permission, AuthToken] (
   new OwnerPermissions(lastPermission),
   new AppRepository(),
-  new InMemoryOauthScopeRepository[BasicOauthScope](Seq(new BasicOauthScope("basic")).map(s => s.id -> s).toMap),
+  new InMemoryOauthScopeRepository[BasicOauthScope](Seq(new BasicOauthScope("basic")).map(s => s.id -> s).toMap), //TODO Create a "ConfOauthScopeRepository"
   new AuthCodeFactory(),
   new AuthTokenFactory()
 )

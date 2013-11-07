@@ -55,8 +55,8 @@ trait Endpoint extends Scope {
   }
 
   lazy val authzEndpoint = new endpoints.AuthorizationEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](User, repository, scopeRepository, codeRepository, tokenRepository)
-  lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository) with ExampleClientAuthentication
-  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
+  lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository) with ExampleClientAuthentication
+  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
 
   def userByUsername: (String, String) => Future[Option[User]] = (u,p) => Future.successful(user.filter(user => user.username == u && user.password == p))
   def userOfClient: BasicOauthClient => Future[Option[User]] = client => Future.successful(Some(User(client.id, client.id, Map.empty)))

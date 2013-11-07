@@ -48,7 +48,7 @@ trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthenticati
 
 }
 
-trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
+trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
 
   this: ClientAuthentication[C] =>
 
@@ -226,13 +226,13 @@ trait Token[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: Oa
   }
 }
 
-class TokenEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
+class TokenEndpoint[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val clientRepository: OauthClientRepository[C],
   val codeRepository: OauthCodeRepository[CO, RO, C],
   val tokenFactory: OauthTokenFactory[TO, RO, C],
   val tokenRepository: OauthTokenRepository[TO, RO, C],
   val supportedGrantType: Seq[String] = OAuth.GrantType.All
-) extends Token[C, SC, CO, RO, P, TO] {
+) extends Token[C, CO, RO, P, TO] {
   this: ClientAuthentication[C] =>
 }
 
