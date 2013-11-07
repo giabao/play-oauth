@@ -9,6 +9,11 @@ import domain.oauth2.Resource
 
 object API extends Controller {
 
+  /**
+   * A example of resource protection
+   *
+   * @return
+   */
   def user = InTx { implicit tx =>
     Resource("basic") { user =>
       Action {

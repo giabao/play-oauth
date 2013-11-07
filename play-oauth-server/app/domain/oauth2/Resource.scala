@@ -10,6 +10,34 @@ import fr.njin.playoauth.Utils
 import play.api.libs.json.Json
 import play.api.http.Status
 
+/**
+ * Example of helpers to protect some resources
+ * with Bearer authentication
+ *
+ * Usage for a local resource
+ *
+ * {{{
+ *  def user = InTx { implicit tx =>
+ *    Resource("basic") { user =>
+ *      Action {
+ *       Ok(Json.toJson(user))
+ *      }
+ *    }
+ *  }
+ * }}}
+ *
+ * Usage for a remote resource
+ *
+ * {{{
+ *  def user = InTx { implicit tx =>
+ *    Resource.remote("basic") { user =>
+ *      Action {
+ *       Ok(Json.toJson(user))
+ *      }
+ *    }
+ *  }
+ * }}}
+ */
 object Resource {
 
   def apply(scopes: String*)(action: User => EssentialAction)(implicit session: AsyncDBSession, ec: ExecutionContext = dbContext): EssentialAction = {

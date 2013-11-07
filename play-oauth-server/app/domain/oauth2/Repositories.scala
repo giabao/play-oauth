@@ -29,7 +29,7 @@ class AuthTokenRepository(implicit val session: AsyncDBSession, val ec: Executio
 
 class AuthCodeRepository(implicit session:AsyncDBSession, ec: ExecutionContext) extends OauthCodeRepository[AuthCode, User, App] {
 
-  def find(value: String): Future[Option[AuthCode]] = AuthCode.find(value, false)
+  def find(value: String): Future[Option[AuthCode]] = AuthCode.find(value, unRevokedOnly = false)
 
   def revoke(value: String): Future[Option[AuthCode]] = {
     (for {
