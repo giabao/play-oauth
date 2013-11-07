@@ -70,7 +70,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
     }
   }
 
-  val tokenValidator = Seq(clientGrantTypeValidation)
+  val tokenValidator = List(clientGrantTypeValidation)
 
   val codeClientValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
@@ -107,7 +107,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
     }
   }
 
-  val codeValidator = Seq(codeClientValidation, codeExpireValidation, codeRevokeValidation, codeRedirectUriValidation)
+  val codeValidator = List(codeClientValidation, codeExpireValidation, codeRevokeValidation, codeRedirectUriValidation)
 
   def errorToJson(error: OauthError)(implicit writes: Writes[OauthError]) = Json.toJson(error)(writes)
 

@@ -115,7 +115,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   /**
    * All validators that will be tested for the request
    */
-  lazy val authzValidator = Seq(
+  lazy val authzValidator = List(
     responseTypeCodeValidator,
     scopeValidator,
     clientAuthorizedValidator,
