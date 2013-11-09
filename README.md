@@ -319,7 +319,13 @@ def info(value: String) = InTx { implicit tx =>
 
 ### i18n
 
-> TODO
+play-oauth error messages use Play Messages api. See available keys at [play-oauth-module/conf/messages](play-oauth-module/conf/messages). 
+
+You can use the provided translation (en, fr) by adding this module in your project:
+
+```scala
+"fr.njin" %% "play-oauth-module" % "1.0.0"
+```
 
 ## Development
 

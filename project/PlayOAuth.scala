@@ -107,6 +107,9 @@ object PlayOAuthBuild extends Build {
     )
   ).dependsOn(playOAuthCommon).aggregate(playOAuthCommon)
 
+  val playOauthModule:Project = play.Project(projectName+"-module", buildVersion, Seq(), file("play-oauth-module"))
+    .settings(buildSettings ++ Publish.settings: _*)
+
   lazy val root = project.in(file("."))
     .settings(buildSettings: _*)
     .settings(unidocSettings: _*)
@@ -117,7 +120,7 @@ object PlayOAuthBuild extends Build {
       site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), buildVersion + "/api"),
       git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
     )
-    .aggregate(PlayOAuthBuild.playOAuth)
+    .aggregate(PlayOAuthBuild.playOAuth, PlayOAuthBuild.playOauthModule)
 }
 
 object PlayAuthServerBuild extends Build {
@@ -140,6 +143,6 @@ object PlayAuthServerBuild extends Build {
 
   val main:Project = play.Project(appName, appVersion, appDependencies, file("play-oauth-server"))
     .settings()
-    .dependsOn(PlayOAuthBuild.playOAuth)
+    .dependsOn(PlayOAuthBuild.playOAuth, PlayOAuthBuild.playOauthModule)
 
 }

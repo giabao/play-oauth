@@ -41,7 +41,7 @@ object OAuth {
   val OauthExpiresIn = "expires_in"
   val OauthRefreshToken = "refresh_token"
 
-  var ErrorClientMissing = "error.missing.clientId"
+  val ErrorClientMissing = "error.missing.clientId"
   val ErrorClientNotFound = "error.client.notfound"
   val ErrorClientCredentialsDontMatch = "error.client.credentials_dont_match"
   val ErrorRedirectURIMissing = "error.redirectUri.missing"

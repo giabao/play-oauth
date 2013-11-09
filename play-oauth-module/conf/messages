@@ -1,0 +1,17 @@
+error.missing.clientId = Client Id parameter is missing
+error.client.notfound =  Client with id {0} not found
+error.client.credentials_dont_match = Client credentials don't match
+error.redirectUri.missing = Redirection URL is missing
+error.redirectUri.invalid = Redirection URL {0} is invalid
+error.invalid.scope = The following scopes is invalid {0}
+error.unauthorized.response_type = Unauthorized response type {0}
+error.unauthorized.grant_type = Unauthorized grant type {0}
+error.unsupported.grant_type = Unsupported grant type {0}
+error.unknown.authorization_code = Unknow authorization code {0}
+error.expired.authorization_code = Authorization code {0} has expired
+error.revoked.authorization_code = Authorization code {0} is revoked
+error.already_consumed.authorization_code = A token has already been issued for the authorization code {0}
+error.client.not_match = Client don''t match
+error.redirectUri.not_match = Redirect URL don''t match
+error.multiple.parameters = The following parameters appear multiple times {0}
+error.invalid.credentials = Invalid credentials
