@@ -1,0 +1,17 @@
+error.missing.clientId = Le paramètre "Client Id" est manquant
+error.client.notfound =  Le client avec l''id {0} n''a pas été trouvé
+error.client.credentials_dont_match = Les identifiants du client ne correspondent pas
+error.redirectUri.missing = L''url de redirection est manquant
+error.redirectUri.invalid = L''url de redirection {0} n'est pas valide
+error.invalid.scope = Les scopes suivants sont invalides : {0}
+error.unauthorized.response_type = Le type de réponse {0} n''est pas autorisé
+error.unauthorized.grant_type = Le type d''autorisation {0} n''est pas permis
+error.unsupported.grant_type = Le type d''autorisation {0} n''est pas supporté
+error.unknown.authorization_code = Le code d''autorisation {0} est inconnu
+error.expired.authorization_code = Le code d''autorisation {0} a expiré
+error.revoked.authorization_code = Le code d''autorisation {0} a été révoqué
+error.already_consumed.authorization_code = Un token a déjà été attribué pour le code d''autorisation {0}
+error.client.not_match = Le client ne correspond pas
+error.redirectUri.not_match = L''url de redirection ne correspond pas
+error.multiple.parameters = Les paramètres suivants apparaissent plusieurs fois : {0}
+error.invalid.credentials = Identifiants invalident
