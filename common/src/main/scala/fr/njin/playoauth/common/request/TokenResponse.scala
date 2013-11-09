@@ -7,7 +7,7 @@ import fr.njin.playoauth.common.domain.OauthToken
 
 /**
  * The response to a token request
- * 
+ *
  * @param accessToken value of the token
  * @param tokenType type of the token. Ex : Bearer
  * @param expiresIn life time of the token

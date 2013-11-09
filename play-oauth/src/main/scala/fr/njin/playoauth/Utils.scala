@@ -10,7 +10,7 @@ object Utils {
     import java.net.URLEncoder
     Option(query).filterNot(_.isEmpty).map { params =>
       "#" + params.toSeq.flatMap { pair =>
-        pair._2.map(v => pair._1+"="+URLEncoder.encode(v, "UTF-8"))
+        pair._2.map(v => pair._1 + "=" + URLEncoder.encode(v, "UTF-8"))
       }.mkString("&")
     }.getOrElse("")
   }

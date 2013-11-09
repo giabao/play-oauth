@@ -78,7 +78,7 @@ class TokenEndpointController(implicit val session:AsyncDBSession, ec: Execution
       if(app.secret == secret)
         Left(Some(app))
       else
-        Right(OauthError.InvalidClientError(Some(Messages(OAuth.ErrorClientCredentialsDontMatch))))
+        Right(OauthError.invalidClientError(Some(Messages(OAuth.ErrorClientCredentialsDontMatch))))
     })
 
 }

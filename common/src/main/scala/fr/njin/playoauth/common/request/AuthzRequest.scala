@@ -28,6 +28,7 @@ object AuthzRequest {
     Map(
       OAuth.OauthResponseType -> Seq(OAuth.ResponseType.Code),
       OAuth.OauthClientId -> Seq(authzRequest.clientId)
-    ) ++ authzRequest.redirectUri.map(s => OAuth.OauthRedirectUri -> Seq(s)) ++ authzRequest.scopes.map(s => OAuth.OauthScope -> Seq(s.mkString(" ")))
+    ) ++ authzRequest.redirectUri.map(s => OAuth.OauthRedirectUri -> Seq(s)) ++
+      authzRequest.scopes.map(s => OAuth.OauthScope -> Seq(s.mkString(" ")))
   }
 }

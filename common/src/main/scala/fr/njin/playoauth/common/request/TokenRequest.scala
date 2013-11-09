@@ -11,17 +11,17 @@ trait TokenRequest {
 }
 
 case class AuthorizationCodeTokenRequest(code: String, clientId: String, redirectUri: Option[String]) extends TokenRequest {
-  def grantType = OAuth.GrantType.AuthorizationCode
+  def grantType:String = OAuth.GrantType.AuthorizationCode
 }
 
 case class PasswordTokenRequest(username: String, password: String, scope: Option[Seq[String]]) extends TokenRequest {
-  def grantType = OAuth.GrantType.Password
+  def grantType:String = OAuth.GrantType.Password
 }
 
 case class ClientCredentialsTokenRequest(scope: Option[Seq[String]]) extends TokenRequest {
-  def grantType = OAuth.GrantType.ClientCredentials
+  def grantType:String = OAuth.GrantType.ClientCredentials
 }
 
 case class RefreshTokenRequest(refreshToken: String, scope: Option[Seq[String]]) extends TokenRequest {
-  def grantType = OAuth.GrantType.RefreshToken
+  def grantType:String = OAuth.GrantType.RefreshToken
 }

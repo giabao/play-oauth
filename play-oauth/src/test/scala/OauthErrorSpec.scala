@@ -8,14 +8,14 @@ class OauthErrorSpec extends Specification {
   "OauthError" should {
     "Deserialize to json" in {
       Seq(
-        OauthError.InvalidRequestError(),
-        OauthError.InvalidClientError(),
-        OauthError.InvalidGrantError(),
-        OauthError.UnauthorizedClientError(),
-        OauthError.UnsupportedGrantTypeError(),
-        OauthError.InvalidScopeError(),
-        OauthError.AccessDeniedError(),
-        OauthError.UnsupportedResponseTypeError()
+        OauthError.invalidRequestError(),
+        OauthError.invalidClientError(),
+        OauthError.invalidGrantError(),
+        OauthError.unauthorizedClientError(),
+        OauthError.unsupportedGrantTypeError(),
+        OauthError.invalidScopeError(),
+        OauthError.accessDeniedError(),
+        OauthError.unsupportedResponseTypeError()
       ).map(Json.toJson(_).toString) must beEqualTo(Seq(
         "{\"error\":\"invalid_request\"}",
         "{\"error\":\"invalid_client\"}",
@@ -30,14 +30,14 @@ class OauthErrorSpec extends Specification {
 
     "Convert to query" in {
       Seq[Map[String, Seq[String]]](
-        OauthError.InvalidRequestError(),
-        OauthError.InvalidClientError(),
-        OauthError.InvalidGrantError(),
-        OauthError.UnauthorizedClientError(),
-        OauthError.UnsupportedGrantTypeError(),
-        OauthError.InvalidScopeError(),
-        OauthError.AccessDeniedError(),
-        OauthError.UnsupportedResponseTypeError()
+        OauthError.invalidRequestError(),
+        OauthError.invalidClientError(),
+        OauthError.invalidGrantError(),
+        OauthError.unauthorizedClientError(),
+        OauthError.unsupportedGrantTypeError(),
+        OauthError.invalidScopeError(),
+        OauthError.accessDeniedError(),
+        OauthError.unsupportedResponseTypeError()
       ) must beEqualTo(Seq(
           Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.InvalidRequest)),
           Map(OAuth.OauthError -> Seq(OAuth.ErrorCode.InvalidClient)),

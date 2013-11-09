@@ -11,10 +11,12 @@ import com.ning.http.client.Realm.AuthScheme
 
 object Oauth2Resource {
 
+  type ResourceOwner[U] = Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]]
+
   def scoped[U](scopes: String*)(action: U => EssentialAction)
                (onUnauthorized: EssentialAction = Action { Unauthorized("") },
                 onForbidden: Seq[String] => EssentialAction = scopes => Action { Forbidden("") })
-               (implicit resourceOwner: Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]],
+               (implicit resourceOwner: ResourceOwner[U],
                 ec: ExecutionContext = scala.concurrent.ExecutionContext.global): EssentialAction =
 
     EssentialAction { request => Iteratee.flatten(
@@ -31,7 +33,7 @@ object Oauth2Resource {
   def resourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (tokenRepository: String => Future[Option[TO]])
     (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] =
+     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
 
     scopes => request => {
       token(request).map(tokenRepository(_).map(_.fold[Either[Option[U], Seq[String]]](Left(None)){token =>
@@ -42,7 +44,7 @@ object Oauth2Resource {
   def localResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (tokenRepository: OauthTokenRepository[TO, U, C])
     (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] =
+     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
 
     resourceOwner[TO, U, C](tokenRepository.find)(token, ec)
 
@@ -52,7 +54,7 @@ object Oauth2Resource {
     (authenticate: WS.WSRequestHolder => WS.WSRequestHolder)
     (fromResponse: Response => Option[TO])
     (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] = {
+     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] = {
 
     resourceOwner[TO, U, C](value => {
       authenticate(WS.url(url).withQueryString(queryParameter -> value))
@@ -65,7 +67,7 @@ object Oauth2Resource {
     (url: String, username: String, password: String, queryParameter: String = "value")
     (fromResponse: Response => Option[TO])
     (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]] = {
+     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] = {
 
     remoteResourceOwner[TO, U, C](url, queryParameter) { ws =>
       ws.withAuth(username, password, AuthScheme.BASIC)

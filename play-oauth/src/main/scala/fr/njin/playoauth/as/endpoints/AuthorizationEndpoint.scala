@@ -36,7 +36,8 @@ import play.api.mvc.SimpleResult
  * @tparam P Permission type
  * @tparam TO Token type
  */
-trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
+trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
+                    P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
 
   val logger:Logger = AuthorizationEndpoint.logger
 
@@ -59,30 +60,32 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * Validates response type of the request.
    *
    * If [[supportedResponseType]] does not contain the requested response type,
-   * a [[fr.njin.playoauth.as.OauthError.UnsupportedResponseTypeError]] is returned
+   * a [[fr.njin.playoauth.as.OauthError.unsupportedResponseTypeError]] is returned
    */
   val responseTypeCodeValidator:AuthzReqValidator = (authzRequest, client) => implicit ec => { Future.successful {
-    if(supportedResponseType.contains(authzRequest.responseType))
+    if(supportedResponseType.contains(authzRequest.responseType)) {
       None
-    else
-      Some(UnsupportedResponseTypeError())
+    } else {
+      Some(unsupportedResponseTypeError())
+    }
   }}
 
   /**
    * Validates the scope of the request.
    *
    * All values of the requested scopes must be found by the scopeRepository
-   * otherwise a [[fr.njin.playoauth.as.OauthError.InvalidScopeError]] is returned
+   * otherwise a [[fr.njin.playoauth.as.OauthError.invalidScopeError]] is returned
    * with the missing scopes
    */
   val scopeValidator:AuthzReqValidator = (authzRequest, client) => implicit ec => {
     authzRequest.scopes.map[Future[Option[Map[String, Seq[String]]]]]{ scope =>
         scopeRepository.find(scope : _*).map{ scopes =>
           val errors = scope.filterNot(scopes.get(_).isDefined)
-          if(errors.isEmpty)
+          if(errors.isEmpty) {
             None
-          else
-            Some(InvalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.mkString(" ")))))
+          } else {
+            Some(invalidScopeError(Some(Messages(OAuth.ErrorInvalidScope, errors.mkString(" ")))))
+          }
         }
     }.getOrElse(Future.successful(None))
   }
@@ -90,26 +93,28 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   /**
    * Validates the access of the client
    *
-   * If the client is not authorized a [[fr.njin.playoauth.as.OauthError.AccessDeniedError]] is returned
+   * If the client is not authorized a [[fr.njin.playoauth.as.OauthError.accessDeniedError]] is returned
    */
   val clientAuthorizedValidator:AuthzReqValidator = (authzRequest, client) => implicit ec => {Future.successful {
-    if(client.authorized)
+    if(client.authorized) {
       None
-    else
-      Some(AccessDeniedError())
+    } else {
+      Some(accessDeniedError())
+    }
   }}
 
   /**
    * Validates the client's response type
    *
    * If [[fr.njin.playoauth.common.domain.OauthClient.allowedResponseType]] does not contain the requested response type,
-   * a [[fr.njin.playoauth.as.OauthError.UnauthorizedClientError]] is returned
+   * a [[fr.njin.playoauth.as.OauthError.unauthorizedClientError]] is returned
    */
   val clientResponseTypeValidator:AuthzReqValidator = (authzRequest, client) => implicit ec => { Future.successful {
-    if(client.allowedResponseType.contains(authzRequest.responseType))
+    if(client.allowedResponseType.contains(authzRequest.responseType)) {
       None
-    else
-      Some(UnauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType))))
+    } else {
+      Some(unauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType))))
+    }
   }}
 
   /**
@@ -129,7 +134,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * @return the query
    */
   def errorToQuery(f:Form[_]):Map[String, Seq[String]] =
-    queryWithState(InvalidRequestError(Some(f.errorsAsJson.toString())), f(OAuth.OauthState).value)
+    queryWithState(invalidRequestError(Some(f.errorsAsJson.toString())), f(OAuth.OauthState).value)
 
   def queryWithState(query: Map[String, Seq[String]], state:Option[String]):Map[String, Seq[String]] =
      state.map(s => query + (OAuth.OauthState -> Seq(s))).getOrElse(query)
@@ -153,21 +158,26 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * @return the result of the authorization
    */
   def onError(f:Form[AuthzRequest], toQuery: Form[AuthzRequest] => Map[String, Seq[String]])
-             (implicit request:RequestHeader, ec:ExecutionContext) = {
+             (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] = {
 
     f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
-      .orElse(f.error(OAuth.OauthRedirectUri).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))))
-      .getOrElse {
+      .orElse(f.error(OAuth.OauthRedirectUri).map(e =>
+        Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))
+      )).getOrElse {
         val id = f(OAuth.OauthClientId).value.get
         clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
 
-          def responseTo(uri: Option[String]) =  uri.fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
+          def responseTo(uri: Option[String]): SimpleResult =  uri.fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
             Redirect(url, toQuery(f), FOUND)
           }
 
           (f(OAuth.OauthResponseType).value, f(OAuth.OauthRedirectUri).value) match {
             case ((Some(OAuth.ResponseType.Token), Some(uri))) =>
-              if (client.redirectUris.exists(_.contains(uri))) responseTo(Some(uri)) else BadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
+              if (client.redirectUris.exists(_.contains(uri))) {
+                responseTo(Some(uri))
+              } else {
+                BadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
+              }
             case ((Some(OAuth.ResponseType.Code)), uri) => responseTo(uri.orElse(client.redirectUri))
             case _ => responseTo(client.redirectUri)
           }
@@ -176,11 +186,13 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
     }
   }
 
-  def onFormError(f:Form[AuthzRequest])(implicit request:RequestHeader, ec:ExecutionContext) =
+  def onFormError(f:Form[AuthzRequest])
+                 (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] =
     onError(f, errorToQuery)
 
-  def onServerError(f:Form[AuthzRequest], error: Throwable)(implicit request:RequestHeader, ec:ExecutionContext) =
-    onError(f, f => queryWithState(ServerError() ,f(OAuth.OauthState).value))
+  def onServerError(f:Form[AuthzRequest], error: Throwable)
+                   (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] =
+    onError(f, f => queryWithState(serverError() ,f(OAuth.OauthState).value))
 
   /**
    * Request handler
@@ -196,16 +208,19 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    */
   def onAuthzRequest(authzRequest: AuthzRequest)
                     (f:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])
-                    (implicit request:RequestHeader, ec:ExecutionContext) = {
+                    (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] = {
 
-    clientRepository.find(authzRequest.clientId).flatMap{ _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
-      authzRequest.redirectUri.orElse(client.redirectUri).fold(Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIMissing)))) { url =>
-        Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap {
-          case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
-          case _ => f(authzRequest, client)(request)
+    clientRepository.find(authzRequest.clientId).flatMap{
+      _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
+        authzRequest.redirectUri.orElse(client.redirectUri).fold(
+          Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIMissing)))) { url =>
+          Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap {
+            case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
+            case _ => f(authzRequest, client)(request)
+          }
         }
       }
-    }}
+    }
 
   }
 
@@ -280,7 +295,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
     (authzRequest, oauthClient) => implicit request => {
       owner(request).fold(onUnauthenticated(authzRequest, oauthClient)(request)) { resourceOwner =>
         permissions(resourceOwner, oauthClient).flatMap(_.fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
-          if(permission.authorized(authzRequest))
+          if(permission.authorized(authzRequest)) {
             codeFactory(resourceOwner, oauthClient, authzRequest.redirectUri, authzRequest.scopes)
               .flatMap { code =>
                 authzRequest.responseType match {
@@ -292,8 +307,9 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
                     }
                 }
               }
-          else
+          } else {
             authzDeny(authzRequest, oauthClient)(request)
+          }
         })
       }
     }
@@ -350,12 +366,13 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
 
     (authzRequest, oauthClient) => implicit request => {
       val url = oauthClient.redirectUri.orElse(authzRequest.redirectUri).get
-      Future.successful(Redirect(url, queryWithState(AccessDeniedError(), authzRequest.state), FOUND))
+      Future.successful(Redirect(url, queryWithState(accessDeniedError(), authzRequest.state), FOUND))
     }
 
 }
 
-class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
+class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
+                            P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val permissions: OauthResourceOwnerPermission[RO, C, P],
   val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],

@@ -20,6 +20,7 @@ object BuildSettings {
     crossScalaVersions := Seq("2.10.2"),
     crossVersion := CrossVersion.binary
   ) ++ Publish.settings ++
+    org.scalastyle.sbt.ScalastylePlugin.Settings ++
     ScctPlugin.instrumentSettings ++
     CoverallsPlugin.coverallsSettings
 }

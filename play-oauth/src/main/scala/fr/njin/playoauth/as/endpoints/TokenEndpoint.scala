@@ -10,7 +10,7 @@ import scala.Predef._
 import Results._
 import fr.njin.playoauth.as.OauthError
 import OauthError._
-import play.api.libs.json.{Writes, Json}
+import play.api.libs.json.{JsValue, Writes, Json}
 import fr.njin.playoauth.common.request._
 import Requests._
 import java.util.Date
@@ -48,7 +48,8 @@ trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthenticati
 
 }
 
-trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
+trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
+            P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
 
   this: ClientAuthentication[C] =>
 
@@ -65,8 +66,11 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
 
   val clientGrantTypeValidation:TokenValidation = (tokenRequest, client) => implicit ec => {
     Future.successful {
-      if(client.allowedGrantType.contains(tokenRequest.grantType)) None
-      else Some(UnauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedGrantType, tokenRequest.grantType))))
+      if(client.allowedGrantType.contains(tokenRequest.grantType)) {
+        None
+      } else {
+        Some(unauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedGrantType, tokenRequest.grantType))))
+      }
     }
   }
 
@@ -74,22 +78,31 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
 
   val codeClientValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
-      if(code.client.id == client.id) None
-      else Some(InvalidGrantError(Some(Messages(OAuth.ErrorClientNotMatch))))
+      if(code.client.id == client.id) {
+        None
+      } else {
+        Some(invalidGrantError(Some(Messages(OAuth.ErrorClientNotMatch))))
+      }
     }
   }
 
   val codeExpireValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
-      if(new Date().getTime < (code.issueAt + code.expireIn)) None
-      else Some(InvalidGrantError(Some(Messages(OAuth.ErrorExpiredAuthorizationCode))))
+      if(new Date().getTime < (code.issueAt + code.expireIn)) {
+        None
+      } else {
+        Some(invalidGrantError(Some(Messages(OAuth.ErrorExpiredAuthorizationCode))))
+      }
     }
   }
 
   val codeRevokeValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
     Future.successful {
-      if(code.revoked) Some(InvalidGrantError(Some(Messages(OAuth.ErrorRevokedAuthorizationCode))))
-      else None
+      if(code.revoked) {
+        Some(invalidGrantError(Some(Messages(OAuth.ErrorRevokedAuthorizationCode))))
+      } else {
+        None
+      }
     }
   }
 
@@ -98,8 +111,8 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
       tokenRequest match {
         case AuthorizationCodeTokenRequest(_, _, uri) =>
           code.redirectUri == uri match {
-            case false if uri.isEmpty => Some(InvalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
-            case false => Some(InvalidGrantError(Some(Messages(OAuth.ErrorRedirectURINotMatch))))
+            case false if uri.isEmpty => Some(invalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
+            case false => Some(invalidGrantError(Some(Messages(OAuth.ErrorRedirectURINotMatch))))
             case _ => None
           }
         case _ => None
@@ -109,61 +122,88 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
 
   val codeValidator = List(codeClientValidation, codeExpireValidation, codeRevokeValidation, codeRedirectUriValidation)
 
-  def errorToJson(error: OauthError)(implicit writes: Writes[OauthError]) = Json.toJson(error)(writes)
+  def errorToJson(error: OauthError)(implicit writes: Writes[OauthError]):JsValue = Json.toJson(error)(writes)
 
-  def clientOf(tokenRequest: TokenRequest)(implicit request: Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext): Future[Either[Option[C], OauthError]] = tokenRequest match {
-    case AuthorizationCodeTokenRequest(_, clientId, _) => clientRepository.find(clientId).map(Left(_))
-    case _ => authenticate(request)
+  def clientOf(tokenRequest: TokenRequest)
+              (implicit request: Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext): Future[Either[Option[C], OauthError]] =
+    tokenRequest match {
+      case AuthorizationCodeTokenRequest(_, clientId, _) => clientRepository.find(clientId).map(Left(_))
+      case _ => authenticate(request)
+    }
+
+  def onTokenFormError(f:Form[_ <: TokenRequest])
+                      (implicit request:Request[AnyContentAsFormUrlEncoded],
+                                ec:ExecutionContext,
+                                writes: Writes[OauthError]): Future[SimpleResult] = {
+    Future.successful(BadRequest(errorToJson(invalidRequestError(Some(f.errorsAsJson.toString())))))
   }
 
-  def onTokenFormError(f:Form[_ <: TokenRequest])(implicit request:Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext, writes: Writes[OauthError]) = {
-    Future.successful(BadRequest(errorToJson(InvalidRequestError(Some(f.errorsAsJson.toString())))))
-  }
+  def onTokenRequest(tokenRequest: TokenRequest)
+                    (f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])
+                    (implicit request:Request[AnyContentAsFormUrlEncoded],
+                              ec:ExecutionContext,
+                              writes: Writes[OauthError]): Future[SimpleResult] = {
 
-  def onTokenRequest(tokenRequest: TokenRequest)(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit request:Request[AnyContentAsFormUrlEncoded], ec:ExecutionContext, writes: Writes[OauthError]) = {
-
-    clientOf(tokenRequest).flatMap(_.fold(_.fold(Future.successful(Unauthorized(errorToJson(InvalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
-      Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap {
-        case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
-        case _ => f(tokenRequest, client)(request)
-      }
-    }, error => Future.successful(Unauthorized(errorToJson(error)))))
-
+    clientOf(tokenRequest).flatMap(_.fold(
+      _.fold(Future.successful(Unauthorized(errorToJson(invalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
+        Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap {
+          case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
+          case _ => f(tokenRequest, client)(request)
+        }
+      }, error => Future.successful(Unauthorized(errorToJson(error)))
+    ))
   }
 
   def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
-           (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+           (implicit ec:ExecutionContext,
+                     writes: Writes[TokenResponse],
+                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
 
     token(perform(owner, clientOwner))
 
-  def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] = implicit request => {
+  def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])
+           (implicit ec:ExecutionContext,
+                     writes: Writes[TokenResponse],
+                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
 
-    val query = request.body.data
+    implicit request => {
 
-    val formOrError: Either[Form[_ <: TokenRequest], OauthError] = query.get(OAuth.OauthGrantType).flatMap(_.headOption).fold[Either[Form[_ <: TokenRequest], OauthError]](Right(InvalidRequestError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))){ grantType =>
-      Option(grantType).filter(supportedGrantType.contains)
-        .flatMap(tokenForms.get)
-        .map(_.bindFromRequest)
-        .toLeft(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, grantType))))
+      val query = request.body.data
+
+      val formOrError: Either[Form[_ <: TokenRequest], OauthError] =
+        query.get(OAuth.OauthGrantType)
+          .flatMap(_.headOption)
+          .fold[Either[Form[_ <: TokenRequest], OauthError]](
+            Right(invalidRequestError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))
+          ){ grantType =>
+            Option(grantType).filter(supportedGrantType.contains)
+              .flatMap(tokenForms.get)
+              .map(_.bindFromRequest)
+              .toLeft(unsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType, grantType))))
+          }
+
+      formOrError.fold(form => {
+        Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
+          form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
+        }.getOrElse(form).fold(onTokenFormError, onTokenRequest(_)(f))
+      }, error => {
+        Future.successful(BadRequest(errorToJson(error)))
+      })
+
     }
 
-    formOrError.fold(form => {
-      Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
-        form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-      }.getOrElse(form).fold(onTokenFormError, onTokenRequest(_)(f))
-    }, error => {
-      Future.successful(BadRequest(errorToJson(error)))
-    })
-
-  }
-
   def perform(owner: (String, String) => Future[Option[RO]],
-              clientOwner: C => Future[Option[RO]]) (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): (TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
-    
+              clientOwner: C => Future[Option[RO]])
+             (implicit ec:ExecutionContext,
+                       writes: Writes[TokenResponse],
+                       errorWrites: Writes[OauthError]): (TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+
     (tokenRequest, oauthClient) => request => {
       tokenRequest match {
         case t:AuthorizationCodeTokenRequest =>
-          codeRepository.find(t.code).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))){ code =>
+          codeRepository.find(t.code).flatMap(_.fold(
+            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))
+          ){ code =>
             Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec)))(_.isDefined).flatMap {
               case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
               case _ => for {
@@ -174,17 +214,23 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
           })
 
         case t:PasswordTokenRequest =>
-          owner(t.username, t.password).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
+          owner(t.username, t.password).flatMap(_.fold(
+            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))
+          ){ resourceOwner =>
              issueAToken(resourceOwner, oauthClient, None, t.scope)
           })
 
         case t:ClientCredentialsTokenRequest =>
-          clientOwner(oauthClient).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))){ resourceOwner =>
+          clientOwner(oauthClient).flatMap(_.fold(
+            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))
+          ){ resourceOwner =>
             issueAToken(resourceOwner, oauthClient, None, t.scope)
           })
 
         case t:RefreshTokenRequest =>
-          tokenRepository.findForRefreshToken(t.refreshToken).flatMap(_.fold(Future.successful(BadRequest(errorToJson(InvalidGrantError(Some(Messages(OAuth.ErrorClientNotFound))))))){ previousToken =>
+          tokenRepository.findForRefreshToken(t.refreshToken).flatMap(_.fold(
+            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorClientNotFound))))))
+          ){ previousToken =>
             for {
               Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)
               token <- issueAToken(revoked.owner, revoked.client, None, revoked.scopes)
@@ -192,11 +238,12 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
           })
 
         //Can not happen
-        case _ => Future.successful(BadRequest(errorToJson(UnsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))))
+        case _ => Future.successful(BadRequest(errorToJson(unsupportedGrantTypeError(Some(Messages(OAuth.ErrorUnsupportedGrantType))))))
       }
     }
 
-  def issueAToken(owner: RO, client: C, redirectUri: Option[String], scope: Option[Seq[String]])(implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[SimpleResult] =
+  def issueAToken(owner: RO, client: C, redirectUri: Option[String], scope: Option[Seq[String]])
+                 (implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[SimpleResult] =
     tokenFactory(owner, client, redirectUri, scope).map { token =>
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
@@ -214,10 +261,11 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, 
       _.fold(onUnauthorized) { client =>
         tokenRepository.find(token).flatMap {
           _.fold(onTokenNotFound) { token =>
-            if(token.client.id == client.id)
+            if(token.client.id == client.id) {
               ok(token)
-            else
+            } else {
               onForbidden
+            }
           }
         }
       }
