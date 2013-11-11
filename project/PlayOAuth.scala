@@ -76,9 +76,7 @@ object PlayOAuthBuild extends Build {
   )
 
   lazy val commonDependencies = Seq(
-    "org.specs2" %% "specs2" % "2.1.1" % "test" cross CrossVersion.binary,
-    //https://github.com/mtkopone/scct/issues/54
-    "reaktor" %% "scct" % "0.2-SNAPSHOT" % "test"
+    "org.specs2" %% "specs2" % "2.1.1" % "test" cross CrossVersion.binary
   )
 
   lazy val playOAuthCommon = Project(
