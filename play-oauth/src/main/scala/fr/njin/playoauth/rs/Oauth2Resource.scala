@@ -8,6 +8,7 @@ import fr.njin.playoauth.common.domain._
 import scala.Some
 import play.api.libs.ws.{Response, WS}
 import com.ning.http.client.Realm.AuthScheme
+import java.util.Date
 
 object Oauth2Resource {
 
@@ -36,9 +37,12 @@ object Oauth2Resource {
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
 
     scopes => request => {
-      token(request).map(tokenRepository(_).map(_.fold[Either[Option[U], Seq[String]]](Left(None)){token =>
-        token.scopes.map(tokenScopes => scopes.filter(tokenScopes.contains(_))).filter(_.isEmpty).toRight(Some(token.owner))
-      })).getOrElse(Future.successful(Left(None)))
+      token(request).map(tokenRepository(_).map(
+        _.filter(!_.hasExpired)
+         .fold[Either[Option[U], Seq[String]]](Left(None)) { token =>
+          token.scopes.map(tokenScopes => scopes.filter(tokenScopes.contains(_))).filter(_.isEmpty).toRight(Some(token.owner))
+         }
+      )).getOrElse(Future.successful(Left(None)))
     }
 
   def localResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]

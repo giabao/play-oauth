@@ -26,6 +26,8 @@ case class AuthToken(id:Long,
   def expiresIn: Option[Long] = Some(lifetime)
 
   def revoke(implicit session: AsyncDBSession, ctx: EC): Future[AuthToken] = AuthToken.revoke(this)
+
+  def issueAt: Long = createdAt.getMillis
 }
 
 object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {

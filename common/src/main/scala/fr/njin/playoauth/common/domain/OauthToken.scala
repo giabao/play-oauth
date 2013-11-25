@@ -1,6 +1,7 @@
 package fr.njin.playoauth.common.domain
 
 import scala.concurrent.Future
+import java.util.Date
 
 /**
  * Represents the oauth2 token
@@ -39,6 +40,11 @@ trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
   def revoked: Boolean
 
   /**
+   * @return the creation timestamp of the code
+   */
+  def issueAt: Long
+
+  /**
    * @return the life time of the token in milliseconds
    */
   def expiresIn: Option[Long]
@@ -52,6 +58,10 @@ trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
    * @return the scope of the token
    */
   def scopes: Option[Seq[String]]
+
+  def hasExpired: Boolean = {
+    expiresIn.exists(_ + issueAt < new Date().getTime)
+  }
 
 }
 
@@ -72,6 +82,7 @@ class BasicOauthToken[RO <: OauthResourceOwner, C <: OauthClient](
                       val client: C,
                       val accessToken: String,
                       val tokenType: String,
+                      val issueAt: Long = new Date().getTime,
                       val revoked: Boolean = false,
                       val expiresIn: Option[Long] = None,
                       val refreshToken: Option[String] = None,

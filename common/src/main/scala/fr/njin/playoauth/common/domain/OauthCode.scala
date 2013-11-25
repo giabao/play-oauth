@@ -29,7 +29,7 @@ trait OauthCode[RO <: OauthResourceOwner, C <: OauthClient] {
   def client:C
 
   /**
-   * @return the expiry timestamp of the code
+   * @return the creation timestamp of the code
    */
   def issueAt: Long
 
