@@ -28,6 +28,12 @@ Add the framework to your dependencies
 ```scala
 "fr.njin" %% "play-oauth" % "1.0.0-SNAPSHOT"
 ```
+
+## Scala doc
+
+The latest api documentation can be founded at [http://njin-fr.github.io/play-oauth/latest/api/](http://njin-fr.github.io/play-oauth/latest/api/)
+
+For previous version, replace `latest` in the url with the desired version. Ex: [http://njin-fr.github.io/play-oauth/**1.0.0-SNAPSHOT**/api/](http://njin-fr.github.io/play-oauth/1.0.0-SNAPSHOT/api/)
  
 ## How to use it
 
@@ -35,7 +41,7 @@ The framework is responsible for implementing the specification but leaves you f
 
 ### Models
 
-Apart `OauthResourceOwner`, the framework provides a base implementation for all of these models. You can use it as an example. Here is what you need to provide:
+Except for `OauthResourceOwner`, the framework provides a base implementation for all of these models. You can use it as an example. Here is what you need to provide:
 
 #### `OauthResourceOwner`
 

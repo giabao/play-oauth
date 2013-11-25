@@ -4,7 +4,6 @@ import sbtunidoc.Plugin._
 import UnidocKeys._
 import com.typesafe.sbt.SbtGit.{GitKeys => git}
 import com.typesafe.sbt.SbtSite._
-import com.typesafe.sbt.SbtSite._
 import com.typesafe.sbt.SbtGhPages._
 
 object BuildSettings {
@@ -111,6 +110,7 @@ object PlayOAuthBuild extends Build {
     .settings(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(PlayAuthServerBuild.main, PlayAuthServerBuild.flywayPlugin),
       site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "latest/api"),
+      site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), buildVersion + "/api"),
       git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
     )
     .aggregate(PlayOAuthBuild.playOAuth)
