@@ -5,7 +5,8 @@ import play.api.mvc.{Results, SimpleResult, AnyContentAsEmpty}
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{Future, ExecutionContext}
-import com.github.theon.uri.Uri.parse
+import com.netaporter.uri.Uri.parse
+
 import Utils._
 
 /**
