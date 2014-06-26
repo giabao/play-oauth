@@ -143,7 +143,9 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
 
       val r = authzEndpoint.authorize(r => throw new Exception())(
         (ar,c) => r => Future.successful(Results.Unauthorized("")),
-        (ar,c) => r => Future.successful(Results.Forbidden(""))
+        (ar,c) => r => Future.successful(Results.Forbidden("")),
+        error => Future.successful(Results.NotFound(error)),
+        error => Future.successful(Results.BadRequest(error))
       ).apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithURI,
         OAuth.OauthResponseType -> OAuth.ResponseType.Code,

@@ -152,23 +152,30 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * </ul>
    *
    * @param f the request form
+   * @param onNotFound called if the client is not found 
+   * @param onBadRequest called if the redirect url or client id is invalid 
    * @param toQuery a function which builds the result query
    * @param request the http request header
    * @param ec an execution context
    * @return the result of the authorization
    */
   def onError(f:Form[AuthzRequest], toQuery: Form[AuthzRequest] => Map[String, Seq[String]])
+             (onNotFound: String => Future[SimpleResult])
+             (onBadRequest: String => Future[SimpleResult])
              (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] = {
 
-    f.error(OAuth.OauthClientId).map(e => Future.successful(BadRequest(Messages(OAuth.ErrorClientMissing))))
-      .orElse(f.error(OAuth.OauthRedirectUri).map(e =>
-        Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args)))
-      )).getOrElse {
+    f.error(OAuth.OauthClientId).map(e => onBadRequest(Messages(OAuth.ErrorClientMissing))) 
+      .orElse(f.error(OAuth.OauthRedirectUri).map(e => {
+        println(e.args)
+        onBadRequest(Messages(OAuth.ErrorRedirectURIInvalid, e.args))
+      })).getOrElse {
         val id = f(OAuth.OauthClientId).value.get
-        clientRepository.find(id).map(_.fold(NotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
+        clientRepository.find(id).flatMap(_.fold(onNotFound(Messages(OAuth.ErrorClientNotFound, id))) { client =>
 
-          def responseTo(uri: Option[String]): SimpleResult =  uri.fold(BadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
-            Redirect(url, toQuery(f), FOUND)
+          def responseTo(uri: Option[String]): Future[SimpleResult] =  uri.fold {
+            onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))
+          } { url =>
+            Future.successful(Redirect(url, toQuery(f), FOUND))
           }
 
           (f(OAuth.OauthResponseType).value, f(OAuth.OauthRedirectUri).value) match {
@@ -176,7 +183,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
               if (client.redirectUris.exists(_.contains(uri))) {
                 responseTo(Some(uri))
               } else {
-                BadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
+                onBadRequest(Messages(OAuth.ErrorRedirectURINotMatch, uri))
               }
             case ((Some(OAuth.ResponseType.Code)), uri) => responseTo(uri.orElse(client.redirectUri))
             case _ => responseTo(client.redirectUri)
@@ -187,12 +194,16 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   }
 
   def onFormError(f:Form[AuthzRequest])
+                 (onNotFound: String => Future[SimpleResult])
+                 (onBadRequest: String => Future[SimpleResult])
                  (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] =
-    onError(f, errorToQuery)
+    onError(f, errorToQuery)(onNotFound)(onBadRequest)
 
   def onServerError(f:Form[AuthzRequest], error: Throwable)
+                   (onNotFound: String => Future[SimpleResult])
+                   (onBadRequest: String => Future[SimpleResult])
                    (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] =
-    onError(f, f => queryWithState(serverError() ,f(OAuth.OauthState).value))
+    onError(f, f => queryWithState(serverError() ,f(OAuth.OauthState).value))(onNotFound)(onBadRequest)
 
   /**
    * Request handler
@@ -202,18 +213,22 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    *
    * @param authzRequest the request
    * @param f the callback. Called when all validations pass
+   * @param onNotFound called when the client is not found
+   * @param onBadRequest called when redirect uri is missing
    * @param request the http request header
    * @param ec an execution context
    * @return the result of the authorization
    */
   def onAuthzRequest(authzRequest: AuthzRequest)
+                    (onNotFound: String => Future[SimpleResult])
+                    (onBadRequest: String => Future[SimpleResult])
                     (f:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])
                     (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] = {
 
     clientRepository.find(authzRequest.clientId).flatMap{
-      _.fold(Future.successful(NotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId)))){ client =>
+      _.fold(onNotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId))){ client =>
         authzRequest.redirectUri.orElse(client.redirectUri).fold(
-          Future.successful(BadRequest(Messages(OAuth.ErrorRedirectURIMissing)))) { url =>
+          onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
           Future.find(authzValidator.map(_(authzRequest, client)(ec)))(_.isDefined).flatMap {
             case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
             case _ => f(authzRequest, client)(request)
@@ -240,10 +255,12 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    */
   def authorize(owner:(RequestHeader) => Option[RO])
                (onUnauthenticated:(AuthzRequest, C) => RequestHeader => Future[SimpleResult],
-                onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])
+                onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[SimpleResult],
+                onNotFound: String => Future[SimpleResult],
+                onBadRequest: String => Future[SimpleResult])
                (implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult] =
 
-    authorize(perform(owner)(onUnauthenticated, onUnauthorized))
+    authorize(perform(owner)(onUnauthenticated, onUnauthorized))(onNotFound)(onBadRequest)
 
   /**
    * THE endpoint
@@ -259,6 +276,8 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * @return the result of the authorization
    */
   def authorize(f:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])
+               (onNotFound: String => Future[SimpleResult])
+               (onBadRequest: String => Future[SimpleResult])
                (implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult] =
 
     implicit request => {
@@ -267,8 +286,10 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
 
       Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
         form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-      }.getOrElse(form).fold(onFormError, onAuthzRequest(_)(f)).recoverWith {
-        case t:Throwable => onServerError(form, t)
+      }.getOrElse(form).fold(formWithErrors => {
+        onFormError(formWithErrors)(onNotFound)(onBadRequest)
+      }, onAuthzRequest(_)(onNotFound)(onBadRequest)(f)).recoverWith {
+        case t:Throwable => onServerError(form, t)(onNotFound)(onBadRequest)
       }
     }
 

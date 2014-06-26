@@ -63,7 +63,9 @@ trait Endpoint extends Scope {
 
   def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(r => user)(
     (ar,c) => r => Future.successful(Results.Unauthorized("")),
-    (ar,c) => r => Future.successful(Results.Forbidden(""))
+    (ar,c) => r => Future.successful(Results.Forbidden("")),
+    error => Future.successful(Results.NotFound(error)),
+    error => Future.successful(Results.BadRequest(error))
   )(ec)
 
   def token(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]) = tokenEndpoint.token(userByUsername, userOfClient)(ec, writes, errorWrites)
