@@ -1,5 +1,5 @@
-import com.github.theon.uri.config.UriConfig
-import com.github.theon.uri.Uri
+import com.netaporter.uri.config.UriConfig
+import com.netaporter.uri.Uri
 import play.api.mvc.{AnyContentAsFormUrlEncoded, AnyContentAsEmpty}
 import play.api.test.FakeRequest
 

@@ -98,7 +98,7 @@ object PlayOAuthBuild extends Build {
         "commons-validator" % "commons-validator" % "1.4.0",
         "com.typesafe.play" %% "play" % playVersion cross CrossVersion.binary,
         "com.typesafe.play" %% "play-test" % playVersion % "test" cross CrossVersion.binary,
-        "com.github.theon" %% "scala-uri" % "0.4.0-SNAPSHOT" % "test"
+        "com.netaporter" %% "scala-uri" % "0.4.2" % "test"
       )
     )
   ).dependsOn(playOAuthCommon).aggregate(playOAuthCommon)
