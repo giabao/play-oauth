@@ -143,14 +143,22 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
                     (implicit request:Request[AnyContentAsFormUrlEncoded],
                               ec:ExecutionContext,
                               writes: Writes[OauthError]): Future[SimpleResult] = {
-
     clientOf(tokenRequest).flatMap(_.fold(
-      _.fold(Future.successful(Unauthorized(errorToJson(invalidClientError(Some(Messages(OAuth.ErrorClientNotFound))))))){ client =>
+      _.fold({
+        val message = tokenRequest match {
+          case AuthorizationCodeTokenRequest(_, clientId, _) => 
+            invalidClientError(Some(Messages(OAuth.ErrorClientNotFound, clientId)))
+          case _ => 
+            invalidClientError()
+        }
+        Future.successful(Unauthorized(errorToJson(message)))
+      }){ client =>
         Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap {
           case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
           case _ => f(tokenRequest, client)(request)
         }
-      }, error => Future.successful(Unauthorized(errorToJson(error)))
+      },
+      error => Future.successful(Unauthorized(errorToJson(error)))
     ))
   }
 
@@ -229,7 +237,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
 
         case t:RefreshTokenRequest =>
           tokenRepository.findForRefreshToken(t.refreshToken).flatMap(_.fold(
-            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorClientNotFound))))))
+            Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorClientNotFound, oauthClient.id))))))
           ){ previousToken =>
             for {
               Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)
