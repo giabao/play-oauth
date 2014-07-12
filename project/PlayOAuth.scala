@@ -12,7 +12,7 @@ import org.scoverage.coveralls.CoverallsPlugin.coverallsSettings
 object BuildSettings {
 
   val projectName = "play-oauth"
-  val buildVersion = "1.0.0-SNAPSHOT"
+  val buildVersion = "1.0.0"
   val playVersion = "2.2.3"
 
   val buildSettings = Defaults.coreDefaultSettings ++ Seq(
