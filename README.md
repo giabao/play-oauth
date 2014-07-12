@@ -26,14 +26,14 @@ play-oauth is a fairly flexible framework
 Add the framework to your dependencies
 
 ```scala
-"fr.njin" %% "play-oauth" % "1.0.0-SNAPSHOT"
+"fr.njin" %% "play-oauth" % "1.0.0"
 ```
 
 ## Scala doc
 
 The latest api documentation can be founded at [http://njin-fr.github.io/play-oauth/latest/api/](http://njin-fr.github.io/play-oauth/latest/api/)
 
-For previous version, replace `latest` in the url with the desired version. Ex: [http://njin-fr.github.io/play-oauth/**1.0.0-SNAPSHOT**/api/](http://njin-fr.github.io/play-oauth/1.0.0-SNAPSHOT/api/)
+For previous version, replace `latest` in the url with the desired version. Ex: [http://njin-fr.github.io/play-oauth/**1.0.0**/api/](http://njin-fr.github.io/play-oauth/1.0.0-SNAPSHOT/api/)
  
 ## How to use it
 
