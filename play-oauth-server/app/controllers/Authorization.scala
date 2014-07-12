@@ -55,7 +55,9 @@ object Authorization extends Controller {
           //If unauthorized, we show a permission form to the user
           (ar, c) => implicit r => {
             Future.successful(Ok(views.html.authorize(c, permissionForm.fill(PermissionForm(c.pid, decision = false, ar.scopes, ar.redirectUri, ar.state)))))
-          }
+          },
+          e => Future.successful(NotFound(e)),
+          e => Future.successful(BadRequest(e))
         ).apply(request)
       }
     }
