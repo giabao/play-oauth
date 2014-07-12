@@ -22,11 +22,10 @@ class ApplicationSpec extends Specification {
     
     "render the index page" in {
       running(FakeApplication()) {
-        val home = route(FakeRequest(GET, "/")).get
+        val signin = route(FakeRequest(GET, "/signin")).get
         
-        status(home) must equalTo(OK)
-        contentType(home) must beSome.which(_ == "text/html")
-        contentAsString(home) must contain ("Your new application is ready.")
+        status(signin) must equalTo(OK)
+        contentType(signin) must beSome.which(_ == "text/html")
       }
     }
   }

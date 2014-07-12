@@ -1,11 +1,12 @@
 package models
 
-import org.joda.time.DateTime
-import scalikejdbc._, async._, SQLInterpolation._
-import fr.njin.playoauth.common.domain.OauthCode
-import scala.Some
-import scala.concurrent.Future
 import fr.njin.playoauth.common.OAuth
+import fr.njin.playoauth.common.domain.OauthCode
+import org.joda.time.DateTime
+import scalikejdbc._
+import scalikejdbc.async._
+
+import scala.concurrent.Future
 
 case class AuthCode(id: Long,
                     value: String,
@@ -36,8 +37,8 @@ object AuthCode extends SQLSyntaxSupport[AuthCode] with ShortenedNames {
     permissionId = rs.long(ac.permissionId),
     scopes = rs.stringOpt(ac.scopes).map(_.split(" ")),
     redirectUri = rs.stringOpt(ac.redirectUri),
-    createdAt = rs.timestamp(ac.createdAt).toDateTime,
-    revokedAt = rs.timestampOpt(ac.revokedAt).map(_.toDateTime)
+    createdAt = rs.jodaDateTime(ac.createdAt),
+    revokedAt = rs.jodaDateTimeOpt(ac.revokedAt)
   )
 
   def apply(ac: SyntaxProvider[AuthCode])(rs: WrappedResultSet): AuthCode = apply(ac.resultName)(rs)

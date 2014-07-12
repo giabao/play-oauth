@@ -1,11 +1,13 @@
 package models
 
+import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.domain.OauthClient
-import org.joda.time.DateTime
-import scalikejdbc._, async._, SQLInterpolation._
+import org.joda.time._
+import scalikejdbc._
+import scalikejdbc.async._
+
 import scala.concurrent.Future
 import java.util.UUID
-import fr.njin.playoauth.common.OAuth
 
 /**
  * User: bathily
@@ -66,7 +68,7 @@ object App extends SQLSyntaxSupport[App] with ShortenedNames {
     //TODO Check the doc for boolean mapping
     isWebApp = rs.int(a.isWebApp) == 1,
     isNativeApp = rs.int(a.isNativeApp) == 1,
-    createdAt = rs.timestamp(a.createdAt).toDateTime
+    createdAt = rs.jodaDateTime(a.createdAt)
   )
 
   def apply(a: SyntaxProvider[App], u: SyntaxProvider[User])(rs: WrappedResultSet): App =

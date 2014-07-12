@@ -323,7 +323,7 @@ def info(value: String) = InTx { implicit tx =>
 
 ## Development
 
-**sbt 0.13, scala 2.10.2 and play 2.2.0**
+**sbt 0.13, scala 2.10 and play 2.2.x**
 
 3 projects:
 

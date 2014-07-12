@@ -1,13 +1,15 @@
 package models
 
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import org.joda.time.DateTime
-import scalikejdbc._, async._, SQLInterpolation._
-import scala.concurrent.Future
 import fr.njin.playoauth.common.domain.OauthPermission
 import fr.njin.playoauth.common.request.AuthzRequest
-import sqls.{ distinct, count }
+import org.joda.time.DateTime
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+import scalikejdbc._
+import scalikejdbc.async._
+import sqls.{count, distinct}
+
+import scala.concurrent.Future
 
 
 /**
@@ -73,8 +75,8 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
     scopes = rs.stringOpt(p.scopes).map(_.split(" ")),
     redirectUri = rs.stringOpt(p.redirectUri),
     state = rs.stringOpt(p.state),
-    createdAt = rs.timestamp(p.createdAt).toDateTime,
-    revokedAt = rs.timestampOpt(p.revokedAt).map(_.toDateTime)
+    createdAt = rs.jodaDateTime(p.createdAt),
+    revokedAt = rs.jodaDateTimeOpt(p.revokedAt)
   )
 
   def apply(p: SyntaxProvider[Permission])(rs: WrappedResultSet): Permission = apply(p.resultName)(rs)
@@ -128,7 +130,7 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
         .and
         .isNull(p.revokedAt)
         .groupBy(p.id)
-    }.map(_.long(0)).single().future().map(_.getOrElse(0))
+    }.map(_.long(1)).single().future().map(_.getOrElse(0))
 
   def authorized(userId: Long, page: Int)(implicit session: AsyncDBSession, cxt: EC): Future[List[Permission]] =
     withSQL {

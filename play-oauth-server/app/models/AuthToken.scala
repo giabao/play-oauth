@@ -1,12 +1,15 @@
 package models
 
-import scalikejdbc._, async._, SQLInterpolation._
 import fr.njin.playoauth.common.domain.OauthToken
-import scala.concurrent.Future
 import org.joda.time.DateTime
-import scala.concurrent.duration.DurationInt
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
+import scalikejdbc._
+import scalikejdbc.async._
+
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 case class AuthToken(id:Long,
                      value: String,
@@ -66,9 +69,9 @@ object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
     tokenType = rs.string(t.tokenType),
     permissionId = rs.long(t.permissionId),
     lifetime = rs.long(t.lifetime),
-    revokedAt = rs.timestampOpt(t.revokedAt).map(_.toDateTime),
+    revokedAt = rs.jodaDateTimeOpt(t.revokedAt),
     refreshToken = rs.stringOpt(t.refreshToken),
-    createdAt = rs.timestamp(t.createdAt).toDateTime
+    createdAt = rs.jodaDateTime(t.createdAt).toDateTime
   )
 
   def apply(t: SyntaxProvider[AuthToken])(rs: WrappedResultSet): AuthToken = apply(t.resultName)(rs)

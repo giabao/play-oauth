@@ -6,22 +6,26 @@ import com.typesafe.sbt.SbtGit.{GitKeys => git}
 import com.typesafe.sbt.SbtSite._
 import com.typesafe.sbt.SbtGhPages._
 
+import scoverage.ScoverageSbtPlugin.instrumentSettings
+import org.scoverage.coveralls.CoverallsPlugin.coverallsSettings
+
 object BuildSettings {
 
   val projectName = "play-oauth"
   val buildVersion = "1.0.0-SNAPSHOT"
-  val playVersion = "2.2.0"
+  val playVersion = "2.2.3"
 
-  val buildSettings = Defaults.defaultSettings ++ Seq(
+  val buildSettings = Defaults.coreDefaultSettings ++ Seq(
     organization := "fr.njin",
     version := buildVersion,
-    scalaVersion := "2.10.2",
-    crossScalaVersions := Seq("2.10.2"),
+    scalaVersion := "2.10.4",
+    scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
+    crossScalaVersions := Seq("2.10.4"),
     crossVersion := CrossVersion.binary
   ) ++ Publish.settings ++
     org.scalastyle.sbt.ScalastylePlugin.Settings ++
-    ScctPlugin.instrumentSettings ++
-    CoverallsPlugin.coverallsSettings
+    instrumentSettings ++
+    coverallsSettings
 }
 
 object Publish {
@@ -108,7 +112,7 @@ object PlayOAuthBuild extends Build {
     .settings(unidocSettings: _*)
     .settings(site.settings ++ ghpages.settings: _*)
     .settings(
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(PlayAuthServerBuild.main, PlayAuthServerBuild.flywayPlugin),
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(PlayAuthServerBuild.main),
       site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "latest/api"),
       site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), buildVersion + "/api"),
       git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
@@ -126,34 +130,16 @@ object PlayAuthServerBuild extends Build {
     "org.mindrot" % "jbcrypt" % "0.3m",
 
     "mysql" % "mysql-connector-java" % "5.1.18",
-    "com.github.seratch"  %% "scalikejdbc-async" % "[0.2,)",
-    "com.github.mauricio" %% "mysql-async"       % "[0.2,)",
-    "com.github.seratch"  %% "scalikejdbc-async-play-plugin" % "[0.2,)",
-    "com.github.tototoshi" %% "play-flyway" % "1.0.0-SNAPSHOT",
+    "org.scalikejdbc"  %% "scalikejdbc-async" % "0.4.0",
+    "com.github.mauricio" %% "mysql-async"       % "0.2.+",
+    "org.scalikejdbc"  %% "scalikejdbc-async-play-plugin" % "0.4.0",
+    "com.github.tototoshi" %% "play-flyway" % "1.0.4",
 
-    "com.github.seratch" %% "scalikejdbc-test" % "[1.6,)"  % "test"
+    "org.scalikejdbc" %% "scalikejdbc-test" % "2.0.4"  % "test"
   )
 
   val main:Project = play.Project(appName, appVersion, appDependencies, file("play-oauth-server"))
     .settings()
-    .dependsOn(PlayOAuthBuild.playOAuth, flywayPlugin).aggregate(flywayPlugin)
-
-  lazy val flywayPlugin = Project (
-    id = "flywayPlugin",
-    base = file ("play-oauth-server/module/play-flyway/plugin"),
-    settings = Defaults.defaultSettings ++ Seq (
-      name := "play-flyway",
-      organization := "com.github.tototoshi",
-      version := "1.0.0-SNAPSHOT",
-      resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
-      libraryDependencies ++= Seq(
-        "com.typesafe.play" %% "play" % playVersion % "provided",
-        "com.googlecode.flyway" % "flyway-core" % "2.1.1",
-        "org.scalatest" %% "scalatest" % "1.9.1" % "test"
-      ),
-      scalacOptions ++= Seq("-language:_", "-deprecation")
-    )
-
-  )
+    .dependsOn(PlayOAuthBuild.playOAuth)
 
 }

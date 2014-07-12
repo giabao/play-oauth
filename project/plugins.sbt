@@ -6,11 +6,17 @@ resolvers ++= Seq(
   "jgit-repo" at "http://download.eclipse.org/jgit/maven"
 )
 
+resolvers += Classpaths.sbtPluginReleases
+
 addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8.3")
 
 addSbtPlugin("com.github.scct" % "sbt-scct" % "0.2.1")
 
-addSbtPlugin("com.github.theon" %% "xsbt-coveralls-plugin" % "0.0.6")
+addSbtPlugin("org.scoverage" %% "sbt-scoverage" % "0.99.5.1")
+
+addSbtPlugin("org.scoverage" %% "sbt-coveralls" % "0.98.0")
+
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.2.3")
 
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.2.0")
 

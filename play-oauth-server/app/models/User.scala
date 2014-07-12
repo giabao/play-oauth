@@ -1,11 +1,14 @@
 package models
 
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import scalikejdbc._, async._, FutureImplicits._, SQLInterpolation._
-import scala.concurrent.Future
 import fr.njin.playoauth.common.domain.OauthResourceOwner
 import org.mindrot.jbcrypt.BCrypt
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+import scalikejdbc._
+import scalikejdbc.async.FutureImplicits._
+import scalikejdbc.async._
+
+import scala.concurrent.Future
 
 
 /**

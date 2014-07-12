@@ -7,6 +7,7 @@ import play.api.test.FakeApplication
 import play.api.test.Helpers._
 import org.specs2.execute.{Result, AsResult}
 import scalikejdbc.async.{NamedAsyncDB, AsyncDBSession}
+import scala.language.postfixOps
 
 /**
  * User: bathily
