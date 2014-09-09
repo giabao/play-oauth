@@ -131,8 +131,8 @@ object PlayAuthServerBuild extends Build {
 
     "mysql" % "mysql-connector-java" % "5.1.18",
     "org.scalikejdbc"  %% "scalikejdbc-async" % "0.4.0",
-    "com.github.mauricio" %% "mysql-async"       % "0.2.+",
-    "org.scalikejdbc"  %% "scalikejdbc-async-play-plugin" % "0.4.0",
+    "com.github.mauricio" %% "mysql-async"       % "0.2.14",
+    "org.scalikejdbc"  %% "scalikejdbc-async-play-plugin" % "0.5.1",
     "com.github.tototoshi" %% "play-flyway" % "1.0.4",
 
     "org.scalikejdbc" %% "scalikejdbc-test" % "2.0.4"  % "test"
