@@ -331,7 +331,7 @@ def info(value: String) = InTx { implicit tx =>
 - *play-oauth* : The framework, endpoints implementations and the resource helpers
 - *play-oauth-server* The sample
 
-To run the sample, you need a MySQL database.
+To run the sample, you need a MySQL database ([version > 5.5.25 see #4](https://github.com/njin-fr/play-oauth/issues/4)).
 
 - sbt
 - project play-oauth-server
