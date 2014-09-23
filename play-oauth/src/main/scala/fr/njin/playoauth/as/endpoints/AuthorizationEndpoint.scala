@@ -202,8 +202,10 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   def onServerError(f:Form[AuthzRequest], error: Throwable)
                    (onNotFound: String => Future[SimpleResult])
                    (onBadRequest: String => Future[SimpleResult])
-                   (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] =
+                   (implicit request:RequestHeader, ec:ExecutionContext): Future[SimpleResult] = {
+    logger.error("Error occurred while authorizing", error)
     onError(f, f => queryWithState(serverError() ,f(OAuth.OauthState).value))(onNotFound)(onBadRequest)
+ }
 
   /**
    * Request handler
@@ -361,7 +363,6 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
   def authzAccept(token:TO): (AuthzRequest, C) => RequestHeader => Future[SimpleResult] =
 
     (authzRequest, oauthClient) => implicit request => {
-
       import Utils.toUrlFragment
 
       val url = authzRequest.redirectUri.orElse( oauthClient.redirectUri).get
