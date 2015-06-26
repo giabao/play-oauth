@@ -9,10 +9,9 @@ import domain.DB._
 import models.AuthToken
 import fr.njin.playoauth.as.OauthError
 import fr.njin.playoauth.common.OAuth
-import play.api.i18n.Messages
+import play.api.i18n.{MessagesApi, Messages}
 import domain.oauth2._
 import play.api.mvc.AnyContentAsFormUrlEncoded
-import scala.Some
 import fr.njin.playoauth.Utils
 import play.api.libs.json.Json
 
@@ -64,7 +63,7 @@ object Token extends Controller {
  * @param session the database session
  * @param ec the database execution context
  */
-class TokenEndpointController(implicit val session:AsyncDBSession, ec: ExecutionContext)
+class TokenEndpointController(implicit session:AsyncDBSession, ec: ExecutionContext, val messagesApi: MessagesApi)
   extends TokenEndpoint[App, AuthCode, User, Permission, AuthToken](
     new AppRepository(),
     new AuthCodeRepository(),

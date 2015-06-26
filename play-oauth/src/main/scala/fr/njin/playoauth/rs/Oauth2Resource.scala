@@ -1,14 +1,12 @@
 package fr.njin.playoauth.rs
 
+import play.api.Application
 import play.api.mvc.Results._
 import play.api.mvc.{Action, RequestHeader, EssentialAction}
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.iteratee.Iteratee
 import fr.njin.playoauth.common.domain._
-import scala.Some
-import play.api.libs.ws.{Response, WS}
-import com.ning.http.client.Realm.AuthScheme
-import java.util.Date
+import play.api.libs.ws.{WSAuthScheme, WSRequest, WSResponse, WS}
 
 object Oauth2Resource {
 
@@ -55,10 +53,11 @@ object Oauth2Resource {
 
   def remoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (url: String, queryParameter: String = "value")
-    (authenticate: WS.WSRequestHolder => WS.WSRequestHolder)
-    (fromResponse: Response => Option[TO])
-    (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] = {
+    (authenticate: WSRequest => WSRequest)
+    (fromResponse: WSResponse => Option[TO])
+    (implicit app: Application,
+     token: RequestHeader => Option[String],
+     ec: ExecutionContext): ResourceOwner[U] = {
 
     resourceOwner[TO, U, C](value => {
       authenticate(WS.url(url).withQueryString(queryParameter -> value))
@@ -69,14 +68,13 @@ object Oauth2Resource {
 
   def basicAuthRemoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
     (url: String, username: String, password: String, queryParameter: String = "value")
-    (fromResponse: Response => Option[TO])
-    (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] = {
+    (fromResponse: WSResponse => Option[TO])
+    (implicit app: Application,
+     token: RequestHeader => Option[String],
+     ec: ExecutionContext): ResourceOwner[U] = {
 
     remoteResourceOwner[TO, U, C](url, queryParameter) { ws =>
-      ws.withAuth(username, password, AuthScheme.BASIC)
-    }(fromResponse)(token, ec)
-
+      ws.withAuth(username, password, WSAuthScheme.BASIC)
+    }(fromResponse)
   }
-
 }

@@ -1,5 +1,6 @@
 package controllers
 
+import play.api.i18n.MessagesApi
 import play.api.mvc.{Action, Controller}
 import models._
 import fr.njin.playoauth.as.endpoints.AuthorizationEndpoint
@@ -15,7 +16,6 @@ import play.api.data.Forms._
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.AuthzRequest
 import domain.oauth2._
-import scala.Some
 
 /**
  * User: bathily
@@ -125,7 +125,8 @@ class OwnerPermissions(lastPermission: Option[Long])(implicit session:AsyncDBSes
  * @param session the database session
  * @param ec the database execution context
  */
-class AuthorizationEndpointController(lastPermission: Option[Long])(implicit val session:AsyncDBSession, ec: ExecutionContext)
+class AuthorizationEndpointController(lastPermission: Option[Long])
+                                     (implicit session:AsyncDBSession, ec: ExecutionContext, val messagesApi: MessagesApi)
   extends AuthorizationEndpoint[App, BasicOauthScope, AuthCode, User, Permission, AuthToken] (
   new OwnerPermissions(lastPermission),
   new AppRepository(),

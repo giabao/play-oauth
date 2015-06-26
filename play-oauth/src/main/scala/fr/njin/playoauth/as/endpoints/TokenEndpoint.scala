@@ -4,7 +4,7 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
-import play.api.i18n.Messages
+import play.api.i18n.{I18nSupport, Messages}
 import fr.njin.playoauth.common.domain._
 import Results._
 import fr.njin.playoauth.as.OauthError
@@ -46,7 +46,7 @@ trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthenticati
 }
 
 trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
-            P <: OauthPermission[C], TO <: OauthToken[RO, C]] {
+            P <: OauthPermission[C], TO <: OauthToken[RO, C]] extends I18nSupport {
 
   this: ClientAuthentication[C] =>
 
@@ -58,62 +58,53 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   def tokenRepository: OauthTokenRepository[TO, RO, C]
   def supportedGrantType: Seq[String]
 
-  type TokenValidation =  (TokenRequest, C) => ExecutionContext => Future[Option[OauthError]]
-  type CodeValidation =  (TokenRequest, C, CO) => ExecutionContext => Future[Option[OauthError]]
+  type TokenValidation = (TokenRequest, C) => (ExecutionContext, Messages) => Future[Option[OauthError]]
+  type CodeValidation = (TokenRequest, C, CO) => (ExecutionContext, Messages) => Future[Option[OauthError]]
 
-  val clientGrantTypeValidation:TokenValidation = (tokenRequest, client) => implicit ec => {
-    Future.successful {
-      if(client.allowedGrantType.contains(tokenRequest.grantType)) {
-        None
-      } else {
-        Some(unauthorizedClientError(Some(Messages(OAuth.ErrorUnauthorizedGrantType, tokenRequest.grantType))))
-      }
+  val clientGrantTypeValidation:TokenValidation = (tokenRequest, client) => (ec, messages) => Future.successful {
+    if(client.allowedGrantType.contains(tokenRequest.grantType)) {
+      None
+    } else {
+      val desc = messages(OAuth.ErrorUnauthorizedGrantType, tokenRequest.grantType)
+      Some(unauthorizedClientError(Some(desc)))
     }
   }
 
   val tokenValidator = List(clientGrantTypeValidation)
 
-  val codeClientValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
-    Future.successful {
-      if(code.client.id == client.id) {
-        None
-      } else {
-        Some(invalidGrantError(Some(Messages(OAuth.ErrorClientNotMatch))))
-      }
+  val codeClientValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
+    if(code.client.id == client.id) {
+      None
+    } else {
+      Some(invalidGrantError(Some(messages(OAuth.ErrorClientNotMatch))))
     }
   }
 
-  val codeExpireValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
-    Future.successful {
-      if(new Date().getTime < (code.issueAt + code.expireIn)) {
-        None
-      } else {
-        Some(invalidGrantError(Some(Messages(OAuth.ErrorExpiredAuthorizationCode))))
-      }
+  val codeExpireValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
+    if(new Date().getTime < (code.issueAt + code.expireIn)) {
+      None
+    } else {
+      Some(invalidGrantError(Some(messages(OAuth.ErrorExpiredAuthorizationCode))))
     }
   }
 
-  val codeRevokeValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
-    Future.successful {
-      if(code.revoked) {
-        Some(invalidGrantError(Some(Messages(OAuth.ErrorRevokedAuthorizationCode))))
-      } else {
-        None
-      }
+  val codeRevokeValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
+    if(code.revoked) {
+      Some(invalidGrantError(Some(messages(OAuth.ErrorRevokedAuthorizationCode))))
+    } else {
+      None
     }
   }
 
-  val codeRedirectUriValidation:CodeValidation = (tokenRequest, client, code) => implicit ec => {
-    Future.successful {
-      tokenRequest match {
-        case AuthorizationCodeTokenRequest(_, _, uri) =>
-          code.redirectUri == uri match {
-            case false if uri.isEmpty => Some(invalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
-            case false => Some(invalidGrantError(Some(Messages(OAuth.ErrorRedirectURINotMatch))))
-            case _ => None
-          }
-        case _ => None
-      }
+  val codeRedirectUriValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
+    tokenRequest match {
+      case AuthorizationCodeTokenRequest(_, _, uri) =>
+        code.redirectUri == uri match {
+          case false if uri.isEmpty => Some(invalidRequestError(Some(OAuth.ErrorRedirectURIMissing)))
+          case false => Some(invalidGrantError(Some(messages(OAuth.ErrorRedirectURINotMatch))))
+          case _ => None
+        }
+      case _ => None
     }
   }
 
@@ -150,7 +141,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
         }
         Future.successful(Unauthorized(errorToJson(message)))
       }){ client =>
-        Future.find(tokenValidator.map(_(tokenRequest, client)(ec)))(_.isDefined).flatMap {
+        Future.find(tokenValidator.map(_(tokenRequest, client)(ec, request2Messages(request))))(_.isDefined).flatMap {
           case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
           case _ => f(tokenRequest, client)(request)
         }
@@ -209,7 +200,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
           codeRepository.find(t.code).flatMap(_.fold(
             Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorUnknownAuthorizationCode, t.code))))))
           ){ code =>
-            Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec)))(_.isDefined).flatMap {
+            Future.find(codeValidator.map(_(tokenRequest, oauthClient, code)(ec, request2Messages(request))))(_.isDefined).flatMap {
               case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
               case _ => for {
                 consumed <- codeRepository.revoke(t.code)
@@ -279,7 +270,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   }
 }
 
-class TokenEndpoint[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
+abstract class TokenEndpoint[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
   val clientRepository: OauthClientRepository[C],
   val codeRepository: OauthCodeRepository[CO, RO, C],
   val tokenFactory: OauthTokenFactory[TO, RO, C],

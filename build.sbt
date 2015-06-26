@@ -42,12 +42,11 @@ lazy val buildSettings = Seq(
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
   crossScalaVersions := Seq("2.11.7"),
-  crossVersion := CrossVersion.binary,
   autoAPIMappings := true
 ) ++ publishSettings
 
 lazy val commonDependencies = Seq(
-  "org.specs2" %% "specs2-core" % "3.3.1" % "test" cross CrossVersion.binary
+  "org.specs2" %% "specs2-core" % "3.3.1" % "test"
 )
 
 lazy val playOAuthCommon = (project in file("common"))
@@ -65,8 +64,9 @@ lazy val playOAuth = (project in file("play-oauth"))
     name := projectName,
     libraryDependencies ++= commonDependencies ++ Seq(
       "commons-validator" % "commons-validator" % "1.4.1",
-      "com.typesafe.play" %% "play" % playVersion cross CrossVersion.binary,
-      "com.typesafe.play" %% "play-test" % playVersion % "test" cross CrossVersion.binary,
+      "com.typesafe.play" %% "play" % playVersion,
+      "com.typesafe.play" %% "play-ws" % playVersion,
+      "com.typesafe.play" %% "play-test" % playVersion % "test",
       "com.netaporter" %% "scala-uri" % "0.4.7" % "test"
     )
   )
