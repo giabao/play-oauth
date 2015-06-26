@@ -1,4 +1,4 @@
-# Oauth2 kit for Play! Framework 2.2 [![Build Status](https://travis-ci.org/njin-fr/play-oauth.png?branch=master)](https://travis-ci.org/njin-fr/play-oauth) [![Coverage Status](https://coveralls.io/repos/njin-fr/play-oauth/badge.png)](https://coveralls.io/r/njin-fr/play-oauth)
+# Oauth2 kit for Play! Framework 2.4 [![Build Status](https://travis-ci.org/njin-fr/play-oauth.png?branch=master)](https://travis-ci.org/njin-fr/play-oauth) [![Coverage Status](https://coveralls.io/repos/njin-fr/play-oauth/badge.png)](https://coveralls.io/r/njin-fr/play-oauth)
 
 play-oauth is a type safe and reactive framework which allows you to create an [Oauth2] (http://oauth.net) authorization server with Play Framework 2 in scala. You can also integrate an Oauth2 authorization relatively easily in your project.
 
@@ -191,18 +191,18 @@ To create your authorization endpoint, instantiate an `AuthorizationEndpoint` an
 
 ```scala
 def authorize(owner:(RequestHeader) => Option[RO])
-             (onUnauthenticated:(AuthzRequest, C) => RequestHeader => Future[SimpleResult],
-              onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])
-             (implicit ec:ExecutionContext): RequestHeader => Future[SimpleResult]
+             (onUnauthenticated:(AuthzRequest, C) => RequestHeader => Future[Result],
+              onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[Result])
+             (implicit ec:ExecutionContext): RequestHeader => Future[Result]
 ```
 
 with the following parameters:
 
 - `owner:(RequestHeader) => Option[RO]` : A function that extract the current resource owner from the request. Return None if there is no resource owner.
 
-- `onUnauthenticated:(AuthzRequest, C) => RequestHeader => Future[SimpleResult]` : A function called when no resource owner is found (when `owner` return None). You can use it to show a login page to the end user.
+- `onUnauthenticated:(AuthzRequest, C) => RequestHeader => Future[Result]` : A function called when no resource owner is found (when `owner` return None). You can use it to show a login page to the end user.
 
-- `onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[SimpleResult])` : A function called when the resource owner didn't allow the client to obtain a token (when `permissions` return None). You can use it to show a decision form to the end user then create a permission for the request.
+- `onUnauthorized:(AuthzRequest, C) => RequestHeader => Future[Result])` : A function called when the resource owner didn't allow the client to obtain a token (when `permissions` return None). You can use it to show a decision form to the end user then create a permission for the request.
 
 ```scala
 def authz = Action.async { request =>
@@ -222,7 +222,7 @@ To create your token endpoint, instantiate a `TokenEndpoint` and call the `token
 
 ```scala
 def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
-         (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult]
+         (implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[Result]
 ```
 
 with the following parameters:
@@ -289,17 +289,17 @@ If your Resource server differ to your Authorization server, you may need to bri
 ```scala
 def info(token: String)
           (authenticate: RequestHeader => Future[Option[C]])
-          (ok: TO => Future[SimpleResult])
-          (onUnauthorized: Future[SimpleResult] = Future.successful(Unauthorized("")),
-           onTokenNotFound: Future[SimpleResult] = Future.successful(NotFound("")),
-           onForbidden: Future[SimpleResult] = Future.successful(Forbidden("")))
-          (implicit ec: ExecutionContext): RequestHeader => Future[SimpleResult]
+          (ok: TO => Future[Result])
+          (onUnauthorized: Future[Result] = Future.successful(Unauthorized("")),
+           onTokenNotFound: Future[Result] = Future.successful(NotFound("")),
+           onForbidden: Future[Result] = Future.successful(Forbidden("")))
+          (implicit ec: ExecutionContext): RequestHeader => Future[Result]
 ```
 
 Use this to create an action in your Authorization server then in your Resource server, use the `remoteResourceOwner` (or the `basicAuthRemoteResourceOwner`) to retrieve the token for your protected resource.
 
 * `authenticate: RequestHeader => Future[Option[C]]` extracts the client from the request. You can use the basic authentication parser from [play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala](play-oauth/src/main/scala/fr/njin/playoauth/Utils.scala)
-* `ok: TO => Future[SimpleResult]` the callback used to send the token.
+* `ok: TO => Future[Result]` the callback used to send the token.
 
 > Example from the sample, in the controller `Token.scala`:
 
@@ -323,7 +323,7 @@ def info(value: String) = InTx { implicit tx =>
 
 ## Development
 
-**sbt 0.13, scala 2.10 and play 2.2.x**
+**sbt 0.13.8, scala 2.11 and play 2.4.x**
 
 3 projects:
 

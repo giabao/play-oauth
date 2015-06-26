@@ -1,7 +1,7 @@
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
-import play.api.mvc.{Results, SimpleResult, AnyContentAsEmpty}
+import play.api.mvc.{Results, Result, AnyContentAsEmpty}
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.{Future, ExecutionContext}
@@ -231,7 +231,7 @@ class AuthzEndpointSpec extends Specification with NoTimeConversions {
     ).map(test => invalidRequest(test._1, OAuth.ErrorCode.InvalidScope, test._2))
   }
 
-  def checkError(result: Future[SimpleResult], waitingCode: String) = {
+  def checkError(result: Future[Result], waitingCode: String) = {
     status(result) must equalTo(FOUND)
     val redirection = redirectLocation(result)
     (redirection must not).beNone

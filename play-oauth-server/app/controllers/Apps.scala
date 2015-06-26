@@ -1,6 +1,6 @@
 package controllers
 
-import play.api.mvc.{Action, SimpleResult, EssentialAction, Controller}
+import play.api.mvc.{Action, Result, EssentialAction, Controller}
 import domain.DB._
 import domain.Security._
 import scalikejdbc.async.AsyncDBSession
@@ -19,7 +19,6 @@ import play.api.libs.iteratee.{Iteratee, Done}
  */
 object Apps extends Controller {
 
-
   case class AppForm(name: String,
                      description: String,
                      uri: String,
@@ -29,7 +28,6 @@ object Apps extends Controller {
                      isNativeApp: Boolean)
 
   object AppForm {
-
     def apply(app: App): AppForm = AppForm(
       app.name,
       app.description,
@@ -39,7 +37,6 @@ object Apps extends Controller {
       app.isWebApp,
       app.isNativeApp
     )
-
   }
 
   val appForm = Form(
@@ -57,11 +54,11 @@ object Apps extends Controller {
   )
 
   val OnAppNotFound: Long => User => EssentialAction = id => implicit user => EssentialAction { implicit request =>
-    Done[Array[Byte], SimpleResult](NotFound(views.html.apps.notfound(id)))
+    Done[Array[Byte], Result](NotFound(views.html.apps.notfound(id)))
   }
 
   val OnAppForbidden: Long => User => EssentialAction = id => implicit user => EssentialAction { implicit request =>
-    Done[Array[Byte], SimpleResult](Forbidden(views.html.apps.notfound(id)))
+    Done[Array[Byte], Result](Forbidden(views.html.apps.notfound(id)))
   }
 
   def CanAccessApp(id:Long, user:User,

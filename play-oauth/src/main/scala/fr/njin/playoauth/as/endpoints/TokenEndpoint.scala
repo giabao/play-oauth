@@ -6,7 +6,6 @@ import play.api.data.Form
 import fr.njin.playoauth.common.OAuth
 import play.api.i18n.Messages
 import fr.njin.playoauth.common.domain._
-import scala.Predef._
 import Results._
 import fr.njin.playoauth.as.OauthError
 import OauthError._
@@ -16,8 +15,6 @@ import Requests._
 import java.util.Date
 import fr.njin.playoauth.common.request.PasswordTokenRequest
 import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
-import scala.Some
-import play.api.mvc.SimpleResult
 import fr.njin.playoauth.common.request.ClientCredentialsTokenRequest
 import fr.njin.playoauth.as.OauthError
 import play.api.Logger
@@ -134,15 +131,15 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   def onTokenFormError(f:Form[_ <: TokenRequest])
                       (implicit request:Request[AnyContentAsFormUrlEncoded],
                                 ec:ExecutionContext,
-                                writes: Writes[OauthError]): Future[SimpleResult] = {
+                                writes: Writes[OauthError]): Future[Result] = {
     Future.successful(BadRequest(errorToJson(invalidRequestError(Some(f.errorsAsJson.toString())))))
   }
 
   def onTokenRequest(tokenRequest: TokenRequest)
-                    (f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])
+                    (f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[Result])
                     (implicit request:Request[AnyContentAsFormUrlEncoded],
                               ec:ExecutionContext,
-                              writes: Writes[OauthError]): Future[SimpleResult] = {
+                              writes: Writes[OauthError]): Future[Result] = {
     clientOf(tokenRequest).flatMap(_.fold(
       _.fold({
         val message = tokenRequest match {
@@ -165,14 +162,14 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
            (implicit ec:ExecutionContext,
                      writes: Writes[TokenResponse],
-                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[Result] =
 
     token(perform(owner, clientOwner))
 
-  def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult])
+  def token(f:(TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[Result])
            (implicit ec:ExecutionContext,
                      writes: Writes[TokenResponse],
-                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+                     errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[Result] =
 
     implicit request => {
 
@@ -204,7 +201,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
               clientOwner: C => Future[Option[RO]])
              (implicit ec:ExecutionContext,
                        writes: Writes[TokenResponse],
-                       errorWrites: Writes[OauthError]): (TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[SimpleResult] =
+                       errorWrites: Writes[OauthError]): (TokenRequest, C) => Request[AnyContentAsFormUrlEncoded] => Future[Result] =
 
     (tokenRequest, oauthClient) => request => {
       tokenRequest match {
@@ -251,7 +248,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
     }
 
   def issueAToken(owner: RO, client: C, redirectUri: Option[String], scope: Option[Seq[String]])
-                 (implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[SimpleResult] =
+                 (implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[Result] =
     tokenFactory(owner, client, redirectUri, scope).map { token =>
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
@@ -259,11 +256,11 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
 
   def info(token: String)
           (authenticate: RequestHeader => Future[Option[C]])
-          (ok: TO => Future[SimpleResult])
-          (onUnauthorized: Future[SimpleResult] = Future.successful(Unauthorized("")),
-           onTokenNotFound: Future[SimpleResult] = Future.successful(NotFound("")),
-           onForbidden: Future[SimpleResult] = Future.successful(Forbidden("")))
-          (implicit ec: ExecutionContext): RequestHeader => Future[SimpleResult] = request => {
+          (ok: TO => Future[Result])
+          (onUnauthorized: Future[Result] = Future.successful(Unauthorized("")),
+           onTokenNotFound: Future[Result] = Future.successful(NotFound("")),
+           onForbidden: Future[Result] = Future.successful(Forbidden("")))
+          (implicit ec: ExecutionContext): RequestHeader => Future[Result] = request => {
 
     authenticate(request).flatMap {
       _.fold(onUnauthorized) { client =>

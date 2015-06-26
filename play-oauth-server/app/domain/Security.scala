@@ -2,7 +2,6 @@ package domain
 
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.mvc._
-import play.api.mvc.SimpleResult
 import models.User
 import java.util.UUID
 import play.api.libs.Crypto
@@ -19,10 +18,10 @@ object Security {
   case class AuthenticatedRequest[A, U](user: U, request: Request[A]) extends WrappedRequest[A](request)
 
   class AuthenticatedActionBuilder[U](userInfo: RequestHeader => Future[Option[U]],
-                                      onUnauthorized: RequestHeader => Future[SimpleResult])
+                                      onUnauthorized: RequestHeader => Future[Result])
                                      (implicit ec: ExecutionContext) extends ActionBuilder[({ type R[A] = AuthenticatedRequest[A, U] })#R] {
 
-    protected def invokeBlock[A](request: Request[A], block: (AuthenticatedRequest[A, U]) => Future[SimpleResult]): Future[SimpleResult] = {
+    protected def invokeBlock[A](request: Request[A], block: (AuthenticatedRequest[A, U]) => Future[Result]): Future[Result] = {
       userInfo(request).flatMap(_.fold(onUnauthorized(request))(u => block(AuthenticatedRequest(u, request))))
     }
 
@@ -30,7 +29,7 @@ object Security {
 
   object AuthenticatedActionBuilder {
     def apply[U](userInfo: RequestHeader => Future[Option[U]],
-                 onUnauthorized: RequestHeader => Future[SimpleResult])
+                 onUnauthorized: RequestHeader => Future[Result])
                 (implicit ec: ExecutionContext) =
       new AuthenticatedActionBuilder[U](userInfo, onUnauthorized)
   }
@@ -55,12 +54,12 @@ object Security {
     ).getOrElse(Future.successful(None))
   }
 
-  def OnUnauthorized: RequestHeader => Future[SimpleResult] = request =>
+  def OnUnauthorized: RequestHeader => Future[Result] = request =>
     Future.successful(Results.Redirect(routes.Application.signIn(Option(request.uri)).url))
 
   trait AuthenticationHandler {
 
-    def logIn(user:User, redirectUrl: String): Future[SimpleResult] = {
+    def logIn(user:User, redirectUrl: String): Future[Result] = {
       Future.successful(Results.Redirect(redirectUrl).withNewSession
         .withSession(
           "sessionId" -> UUID.randomUUID().toString,
@@ -70,7 +69,7 @@ object Security {
       )
     }
 
-    def logOut(user:User): Future[SimpleResult] = {
+    def logOut(user:User): Future[Result] = {
       Future.successful(Results.Redirect(routes.Application.signIn()).withNewSession)
     }
   }
