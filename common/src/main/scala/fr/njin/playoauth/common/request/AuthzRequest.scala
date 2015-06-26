@@ -1,6 +1,7 @@
 package fr.njin.playoauth.common.request
 
 import fr.njin.playoauth.common.OAuth
+import scala.language.implicitConversions
 
 /**
  * The authorization request.

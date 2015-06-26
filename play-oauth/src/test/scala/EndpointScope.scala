@@ -9,11 +9,8 @@ import play.api.libs.json.Writes
 import play.api.mvc._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.duration._
-import scala.Some
 
-case class User(username:String, password:String, permissions:Map[BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]) extends OauthResourceOwner {
-
-}
+case class User(username:String, password:String, permissions:Map[BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]) extends OauthResourceOwner
 
 object User extends OauthResourceOwnerPermission[User, BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]{
   def apply(owner: User, client: BasicOauthClient): Future[Option[BasicOAuthPermission[BasicOauthClient]]] =
@@ -29,7 +26,6 @@ trait Endpoint extends Scope {
   lazy val tokens: Set[BasicOauthToken[User, BasicOauthClient]] = Set.empty
 
   trait ExampleClientAuthentication extends ClientAuthentication[BasicOauthClient] {
-    import ExecutionContext.Implicits.global
     def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[BasicOauthClient], OauthError]] =
       request.body.data.get(OAuth.OauthClientId).flatMap(_.headOption).map(id => repository.find(id))
         .fold(Future.successful[Either[Option[BasicOauthClient], OauthError]](Left(None)))(_.map(Left(_)))
@@ -119,6 +115,4 @@ trait EndPointWithClients extends Endpoint {
       new BasicOauthScope("scope2")
     ) map (s => s.id -> s)).toMap
   )
-
-
 }

@@ -8,6 +8,7 @@ import play.api.libs.Crypto
 import controllers.routes
 import scalikejdbc.async.AsyncDBSession
 import play.api.libs.iteratee.{Input, Done, Iteratee}
+import scala.language.reflectiveCalls
 
 /**
  * User: bathily

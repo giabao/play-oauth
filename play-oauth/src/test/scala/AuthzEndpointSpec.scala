@@ -1,6 +1,5 @@
 import fr.njin.playoauth.common.OAuth
 import org.specs2.mutable.Specification
-import org.specs2.time.NoTimeConversions
 import play.api.mvc.{Results, Result, AnyContentAsEmpty}
 import play.api.test._
 import play.api.test.Helpers._
@@ -13,7 +12,7 @@ import Utils._
  * User: bathily
  * Date: 18/09/13
  */
-class AuthzEndpointSpec extends Specification with NoTimeConversions {
+class AuthzEndpointSpec extends Specification {
 
   import Constants._
 
