@@ -29,16 +29,9 @@ trait WithDB extends Around {
   lazy val db:NamedAsyncDB = NamedAsyncDB()
 
   def fakeApp(): FakeApplication = FakeApplication(
-    withoutPlugins = Seq("play.api.cache.EhCachePlugin"),
-    additionalPlugins = Seq("com.github.tototoshi.play2.flyway.Plugin", "scalikejdbc.async.PlayPlugin"),
     additionalConfiguration = Map(
-      "logger.root" -> "INFO",
-      "logger.play" -> "INFO",
-      "logger.application" -> "INFO",
-      "dbplugin" -> "disabled",
-      "evolutionplugin" -> "disabled",
       "db.default.driver" -> "com.mysql.jdbc.Driver",
-      "db.default.url" -> "jdbc:mysql://localhost/oauths-test",
+      "db.default.url" -> "jdbc:mysql://dev.sandinh.com/oauths-test",
       "db.default.user" -> "oauths",
       "db.default.password" -> "oauths",
       "db.default.schema" -> "",
@@ -49,7 +42,7 @@ trait WithDB extends Around {
     )
   )
 
-  def fixture(implicit session: AsyncDBSession, ec: ExecutionContext): Future[Unit] = Future.successful()
+  def fixture(implicit session: AsyncDBSession, ec: ExecutionContext): Future[Unit] = Future successful Unit
 
   def around[T](t: => T)(implicit evidence$1: AsResult[T]): Result = running(fakeApp()) {
 

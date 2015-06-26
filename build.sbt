@@ -100,13 +100,14 @@ lazy val `play-oauth-server` = (project in file("play-oauth-server"))
     libraryDependencies ++= Seq(
       "de.svenkubiak"         % "jBCrypt"                         % "0.4",
 
-      "mysql"                 % "mysql-connector-java"            % "5.1.35",
-      "org.scalikejdbc"       %% "scalikejdbc-async"              % "0.5.5",
-      "com.github.mauricio"   %% "mysql-async"                    % "0.2.16",
-      "org.scalikejdbc"       %% "scalikejdbc-async-play-plugin"  % "0.5.5",
-      "com.github.tototoshi"  %% "play-flyway"                    % "1.2.1",
+      "mysql"                 % "mysql-connector-java"            % "5.1.+",
+      "com.github.mauricio"   %% "mysql-async"                    % "0.2.+",
+      "org.scalikejdbc"       %% "scalikejdbc-async-play-plugin"  % "0.6.0-SNAPSHOT",
+      "org.flywaydb"          %% "flyway-play"                    % "2.1.0-SNAPSHOT",
 
-      "org.scalikejdbc"       %% "scalikejdbc-test"               % "2.2.7"   % "test"
+      "org.scalikejdbc"       %% "scalikejdbc-test"               % "2.2.+"     % "test",
+      "com.typesafe.play"     %% "play-specs2"                    % playVersion % "test",
+      "com.typesafe.play"     %% "play-test"                      % playVersion % "test"
     )
   )
   .dependsOn(playOAuth)
