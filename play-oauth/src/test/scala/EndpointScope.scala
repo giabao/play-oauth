@@ -1,14 +1,18 @@
 import fr.njin.playoauth.as.{OauthError, endpoints}
+import endpoints.{AuthorizationEndpoint, TokenEndpoint}
 import fr.njin.playoauth.as.endpoints.ClientAuthentication
 import fr.njin.playoauth.common.domain._
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.TokenResponse
 import java.util.{UUID, Date}
 import org.specs2.specification.Scope
+import play.api.{Configuration, Environment}
+import play.api.i18n.{DefaultLangs, MessagesApi, DefaultMessagesApi}
 import play.api.libs.json.Writes
 import play.api.mvc._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.duration._
+import ExecutionContext.Implicits.global
 
 case class User(username:String, password:String, permissions:Map[BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]) extends OauthResourceOwner
 
@@ -50,9 +54,31 @@ trait Endpoint extends Scope {
     }
   }
 
-  lazy val authzEndpoint = new endpoints.AuthorizationEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](User, repository, scopeRepository, codeRepository, tokenRepository)
-  lazy val tokenEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository) with ExampleClientAuthentication
-  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new endpoints.TokenEndpoint[BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User, BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](repository, codeRepository, tokenRepository, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication
+  lazy val defaultMessagesApi: MessagesApi = {
+    val env = Environment.simple()
+    val cfg = Configuration.load(env)
+    val langs = new DefaultLangs(cfg)
+    new DefaultMessagesApi(env, cfg, langs)
+  }
+
+  lazy val authzEndpoint = new AuthorizationEndpoint[
+    BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User,
+    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
+      User, repository, scopeRepository, codeRepository, tokenRepository) {
+    def messagesApi = defaultMessagesApi
+  }
+  lazy val tokenEndpoint = new TokenEndpoint[
+    BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User,
+    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
+      repository, codeRepository, tokenRepository, tokenRepository) with ExampleClientAuthentication {
+    def messagesApi = defaultMessagesApi
+  }
+  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new TokenEndpoint[
+    BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User,
+    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
+      repository, codeRepository, tokenRepository, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication {
+    def messagesApi = defaultMessagesApi
+  }
 
   def userByUsername: (String, String) => Future[Option[User]] = (u,p) => Future.successful(user.filter(user => user.username == u && user.password == p))
   def userOfClient: BasicOauthClient => Future[Option[User]] = client => Future.successful(Some(User(client.id, client.id, Map.empty)))

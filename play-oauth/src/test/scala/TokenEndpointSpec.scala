@@ -1,7 +1,6 @@
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.TokenResponse
 import org.specs2.mutable.Specification
-import org.specs2.time.NoTimeConversions
 import play.api.libs.json.Json
 import play.api.test.Helpers._
 import scala.concurrent.{ExecutionContext, Await}
@@ -11,7 +10,7 @@ import Utils._
  * User: bathily
  * Date: 18/09/13
  */
-class TokenEndpointSpec extends Specification with NoTimeConversions {
+class TokenEndpointSpec extends Specification {
 
   import Constants._
 

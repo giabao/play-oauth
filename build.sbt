@@ -66,6 +66,7 @@ lazy val playOAuth = (project in file("play-oauth"))
       "commons-validator" % "commons-validator" % "1.4.1",
       "com.typesafe.play" %% "play" % playVersion,
       "com.typesafe.play" %% "play-ws" % playVersion,
+      "com.typesafe.play" %% "play-specs2" % playVersion % "test",
       "com.typesafe.play" %% "play-test" % playVersion % "test",
       "com.netaporter" %% "scala-uri" % "0.4.7" % "test"
     )

@@ -1,6 +1,6 @@
 import fr.njin.playoauth.as.endpoints.Constraints._
 import org.specs2.mutable.Specification
-import org.specs2.specification.Fragment
+import org.specs2.specification.core.Fragment
 import play.api.data.validation.{Valid, Invalid}
 
 /**
