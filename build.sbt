@@ -79,7 +79,7 @@ lazy val root = project.in(file("."))
   .settings(unidocSettings: _*)
   .settings(site.settings ++ ghpages.settings: _*)
   .settings(
-    unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(main),
+    unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(`play-oauth-server`),
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "latest/api"),
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), buildVersion + "/api"),
     git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
@@ -88,7 +88,7 @@ lazy val root = project.in(file("."))
   .aggregate(playOAuth)
 
 
-lazy val main = (project in file("play-oauth-server"))
+lazy val `play-oauth-server` = (project in file("play-oauth-server"))
   .enablePlugins(PlayScala)
   .settings(
     name := projectName + "-server",
@@ -96,6 +96,7 @@ lazy val main = (project in file("play-oauth-server"))
     organization := "fr.njin",
     scalaVersion := "2.11.7",
     scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
+    routesGenerator := InjectedRoutesGenerator,
     libraryDependencies ++= Seq(
       "de.svenkubiak"         % "jBCrypt"                         % "0.4",
 

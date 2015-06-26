@@ -1,6 +1,8 @@
 package controllers
 
-import play.api.i18n.MessagesApi
+import javax.inject.{Inject, Singleton}
+
+import play.api.i18n.{I18nSupport, MessagesApi}
 import play.api.mvc.{Action, Controller}
 import models._
 import fr.njin.playoauth.as.endpoints.AuthorizationEndpoint
@@ -17,12 +19,7 @@ import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.AuthzRequest
 import domain.oauth2._
 
-/**
- * User: bathily
- * Date: 03/10/13
- */
-object Authorization extends Controller {
-
+object Authorization {
   case class PermissionForm(appId: Long,
                             decision: Boolean,
                             scope: Option[Seq[String]],
@@ -38,6 +35,14 @@ object Authorization extends Controller {
       "state" -> optional(text)
     )(PermissionForm.apply)(PermissionForm.unapply)
   )
+}
+
+/**
+ * User: bathily
+ * Date: 03/10/13
+ */
+@Singleton class Authorization @Inject() (implicit val messagesApi: MessagesApi) extends Controller with I18nSupport {
+  import Authorization._
 
   /**
    * Authorization endpoint call

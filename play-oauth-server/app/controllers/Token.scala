@@ -1,5 +1,7 @@
 package controllers
 
+import javax.inject.{Inject, Singleton}
+
 import play.api.mvc._
 import scalikejdbc.async.AsyncDBSession
 import scala.concurrent.{Future, ExecutionContext}
@@ -9,14 +11,13 @@ import domain.DB._
 import models.AuthToken
 import fr.njin.playoauth.as.OauthError
 import fr.njin.playoauth.common.OAuth
-import play.api.i18n.{MessagesApi, Messages}
+import play.api.i18n.{I18nSupport, MessagesApi, Messages}
 import domain.oauth2._
 import play.api.mvc.AnyContentAsFormUrlEncoded
 import fr.njin.playoauth.Utils
 import play.api.libs.json.Json
 
-object Token extends Controller {
-
+@Singleton class Token @Inject() (implicit val messagesApi: MessagesApi) extends Controller with I18nSupport {
   /**
    * Token endpoint call
    *

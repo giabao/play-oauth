@@ -1,5 +1,7 @@
 package controllers
 
+import javax.inject.Singleton
+
 import play.api.mvc.{Action, Controller}
 import domain.DB._
 import models.Permission
@@ -9,7 +11,7 @@ import domain.Security._
  * User: bathily
  * Date: 01/10/13
  */
-object Users extends Controller {
+@Singleton class Users extends Controller {
 
   def profile = TODO
 
@@ -25,7 +27,5 @@ object Users extends Controller {
 
       }
     }
-
-
   }
 }

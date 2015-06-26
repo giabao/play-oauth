@@ -1,4 +1,4 @@
-@(back: Option[String], form: Form[(String, String, String, String)])(implicit request: RequestHeader)
+@(back: Option[String], form: Form[(String, String, String, String)])(implicit request: RequestHeader, messages: Messages)
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/signin.css")" rel="stylesheet">

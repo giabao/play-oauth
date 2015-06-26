@@ -1,4 +1,4 @@
-@()(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User])
+@()(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], messages: Messages)
 
 @s = {
     <link href="@routes.Assets.at("stylesheets/main.css")" rel="stylesheet">

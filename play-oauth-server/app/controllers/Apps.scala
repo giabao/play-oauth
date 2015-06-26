@@ -1,5 +1,7 @@
 package controllers
 
+import javax.inject.{Singleton, Inject}
+
 import play.api.mvc.{Action, Result, EssentialAction, Controller}
 import domain.DB._
 import domain.Security._
@@ -10,15 +12,10 @@ import play.api.data.Forms._
 import fr.njin.playoauth.as.endpoints.Constraints._
 import fr.njin.playoauth.as.endpoints.Requests._
 import scala.concurrent.Future
-import play.api.i18n.Messages
+import play.api.i18n.{MessagesApi, I18nSupport, Messages}
 import play.api.libs.iteratee.{Iteratee, Done}
 
-/**
- * User: bathily
- * Date: 03/10/13
- */
-object Apps extends Controller {
-
+object Apps {
   case class AppForm(name: String,
                      description: String,
                      uri: String,
@@ -52,6 +49,14 @@ object Apps extends Controller {
       !(app.isWebApp || app.isNativeApp) || app.redirectUris.exists(!_.isEmpty)
     })
   )
+}
+
+/**
+ * User: bathily
+ * Date: 03/10/13
+ */
+@Singleton class Apps @Inject() (val messagesApi: MessagesApi) extends Controller with I18nSupport {
+  import Apps._
 
   val OnAppNotFound: Long => User => EssentialAction = id => implicit user => EssentialAction { implicit request =>
     Done[Array[Byte], Result](NotFound(views.html.apps.notfound(id)))

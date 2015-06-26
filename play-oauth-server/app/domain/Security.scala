@@ -22,7 +22,7 @@ object Security {
                                       onUnauthorized: RequestHeader => Future[Result])
                                      (implicit ec: ExecutionContext) extends ActionBuilder[({ type R[A] = AuthenticatedRequest[A, U] })#R] {
 
-    protected def invokeBlock[A](request: Request[A], block: (AuthenticatedRequest[A, U]) => Future[Result]): Future[Result] = {
+    def invokeBlock[A](request: Request[A], block: (AuthenticatedRequest[A, U]) => Future[Result]): Future[Result] = {
       userInfo(request).flatMap(_.fold(onUnauthorized(request))(u => block(AuthenticatedRequest(u, request))))
     }
 

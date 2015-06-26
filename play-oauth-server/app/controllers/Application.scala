@@ -1,5 +1,8 @@
 package controllers
 
+import javax.inject.{Inject, Singleton}
+
+import play.api.i18n.{I18nSupport, MessagesApi}
 import play.api.mvc._
 import scala.concurrent.Future
 import play.api.data.Form
@@ -10,7 +13,7 @@ import models.User
 import domain.DB._
 import domain.Security._
 
-object Application extends Controller {
+@Singleton class Application @Inject() (val messagesApi: MessagesApi) extends Controller with I18nSupport {
 
   def index = InTx { implicit tx =>
     AuthenticatedAction.apply { implicit request =>

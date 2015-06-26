@@ -1,4 +1,4 @@
-@(apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], lang: Lang)
+@(apps: List[models.App])(implicit request: domain.Security.AuthenticatedRequest[AnyContent, User], messages: Messages)
 
 @import org.joda.time.format.DateTimeFormat
 
@@ -27,7 +27,7 @@
                     <a href="@routes.Apps.app(app.pid)" class="list-group-item">
                         <div class="app-title">
                             <img src="@app.icon" alt="@app.name" class="app-uri pull-left"/><h4 class="list-group-item-heading">@app.name</h4>
-                            <div class="text-muted">@app.uri • @DateTimeFormat.mediumDateTime().withLocale(lang.toLocale).print(app.createdAt)</div>
+                            <div class="text-muted">@app.uri • @DateTimeFormat.mediumDateTime().withLocale(messages.lang.toLocale).print(app.createdAt)</div>
                         </div>
                         <p class="list-group-item-text hidden-xs">@app.description</p>
                     </a>
