@@ -21,9 +21,9 @@ object Oauth2Resource {
                 ec: ExecutionContext = scala.concurrent.ExecutionContext.global): EssentialAction =
 
     EssentialAction { request => Iteratee.flatten(
-      resourceOwner(scopes)(request).map {
-        _.fold(
-          _.fold(onUnauthorized(request)) { owner =>
+      resourceOwner(scopes)(request).map { either =>
+        either.fold( uOpt =>
+          uOpt.fold(onUnauthorized(request)) { owner =>
             action(owner)(request)
           },
           onForbidden(_)(request)

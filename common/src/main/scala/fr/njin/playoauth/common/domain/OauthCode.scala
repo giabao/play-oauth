@@ -1,58 +1,20 @@
 package fr.njin.playoauth.common.domain
 
+import java.time.Instant
 import fr.njin.playoauth.common.OAuth
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Represents the oauth2 code issuing by the authorization server
  *
  * An oauth2 code is issuing for a resource owner and a client. Its value must be unique
  */
-trait OauthCode {
-
-  /**
-   * @return the value of the code. Must be unique.
-   */
-  def value: String
-
-  /**
-   * @return the resource owner of the code.
-   * @see [[fr.njin.playoauth.common.domain.OauthResourceOwner]]
-   */
-  def ownerId: String
-
-  /**
-   * @return the client of the code
-   * @see [[fr.njin.playoauth.common.domain.OauthClient]]
-   */
-  def clientId:String
-
-  /**
-   * @return the creation timestamp of the code
-   */
-  def issueAt: Long
-
-  /**
-   * @return the life time of the code in milliseconds
-   */
-  def expireIn: Long
-
-  /**
-   * @return true if the code is revoked
-   *
-   * The code is revoked by the authorization endpoint before issuing a token
-   */
-  def revoked: Boolean
-
+trait OauthCode extends OauthTokenBase {
   /**
    * @return the redirectUri specified by the client when requesting the code
    */
   def redirectUri: Option[String]
-
-  /**
-   * @return the scopes of the code
-   */
-  def scopes: Option[Seq[String]]
 }
 
 /**
@@ -77,8 +39,8 @@ trait OauthCodeRepository[CO <: OauthCode] {
 class BasicOauthCode(val value: String,
                      val ownerId:String,
                      val clientId: String,
-                     val issueAt: Long,
-                     val expireIn: Long = OAuth.MaximumLifetime.toMillis,
+                     val issueAt: Instant = Instant.now,
+                     val expiresIn: FiniteDuration = OAuth.MaximumLifetime,
                      val revoked: Boolean = false,
                      val redirectUri: Option[String] = None,
                      val scopes: Option[Seq[String]] = None) extends OauthCode

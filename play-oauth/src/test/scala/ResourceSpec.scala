@@ -1,8 +1,10 @@
+import java.time.Instant
+
 import fr.njin.playoauth.common.domain.{OauthResourceOwnerRepository, BasicOauthClient, BasicOauthToken}
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.rs.Oauth2Resource._
 import java.util.UUID
-import org.joda.time.DateTime
+import com.sandinh.util.TimeUtil._
 import org.specs2.specification.Scope
 import play.api.mvc.{RequestHeader, Action, EssentialAction}
 import play.api.mvc.Results._
@@ -67,15 +69,14 @@ trait ResourceScope extends Scope {
 
   val user = User("username", "password", Map.empty)
   val client = new BasicOauthClient("id", "secret", OAuth.ResponseType.All, OAuth.GrantType.All)
-  val token = new BasicOauthToken(user.id, client.id, "token", "Bearer", scopes = Some(Seq(validScope)))
+  val token = new BasicOauthToken("token", user.id, client.id, "Bearer", scopes = Some(Seq(validScope)))
   val action: User => EssentialAction = u => Action { Ok("") }
 
   val tokenFound: RequestHeader => Option[String] = request => Some("token")
   val tokenNotFound: RequestHeader => Option[String] = request => None
   val tokenExpired: RequestHeader => Option[String] = request => Some("expiredToken")
 
-  val expiredToken = new BasicOauthToken(user.id, client.id, "expiredToken", "Bearer",
-    issueAt = DateTime.now().minusHours(1).getMillis, expiresIn = Some(10.minutes.toMillis))
+  val expiredToken = new BasicOauthToken("expiredToken", user.id, client.id, "Bearer", issueAt = Instant.now - 1.hour)
 
   val fakeResourceOwner: Seq[String] => RequestHeader => Future[Either[Option[User], Seq[String]]] = scopes => request => {
     Future.successful {
@@ -91,7 +92,7 @@ trait ResourceScope extends Scope {
 
   lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken](Set(token, expiredToken)){
     def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthToken] = Future.successful{
-      val token = new BasicOauthToken(ownerId, clientId, UUID.randomUUID().toString, "example")
+      val token = new BasicOauthToken(UUID.randomUUID().toString, ownerId, clientId, "example")
       tokens = tokens + token
       token
     }

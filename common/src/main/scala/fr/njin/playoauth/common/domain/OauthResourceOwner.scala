@@ -10,5 +10,5 @@ trait OauthResourceOwner {
 }
 
 trait OauthResourceOwnerRepository[T <: OauthResourceOwner] {
-  def find(id:String):Future[Option[T]]
+  def find(id: String): Future[Option[T]]
 }

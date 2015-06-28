@@ -45,7 +45,7 @@ case class App(pid: Long,
 
   val allowedGrantType: Seq[String] = Seq(OAuth.GrantType.AuthorizationCode, OAuth.GrantType.ClientCredentials, OAuth.GrantType.RefreshToken)
 
-  val issuedAt: Long = createdAt.getMillis
+  val issuedAt: Long = createdAt.getMillis / 1000
 }
 
 object App extends SQLSyntaxSupport[App] with ShortenedNames {

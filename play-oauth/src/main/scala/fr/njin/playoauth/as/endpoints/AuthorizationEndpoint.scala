@@ -365,9 +365,9 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode, RO <: O
       Future.successful(Redirect(url + toUrlFragment(
         Map(
           OAuth.OauthAccessToken -> Seq(token.accessToken),
-          OAuth.OauthTokenType -> Seq(token.tokenType)
-        ) ++ token.expiresIn.map(s => OAuth.OauthExpiresIn -> Seq(s.toString))
-          ++ token.scopes.map(s => OAuth.OauthScope -> Seq(s.mkString(" ")))
+          OAuth.OauthTokenType -> Seq(token.tokenType),
+          OAuth.OauthExpiresIn -> Seq(token.expiresIn.toSeconds.toString)
+        ) ++ token.scopes.map(s => OAuth.OauthScope -> Seq(s.mkString(" ")))
           ++ authzRequest.state.map(s => OAuth.OauthState -> Seq(s))), FOUND)
       )
     }

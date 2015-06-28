@@ -1,27 +1,18 @@
 package fr.njin.playoauth.common.domain
 
+import java.time.Instant
+import fr.njin.playoauth.common.OAuth
 import scala.concurrent.Future
-import java.util.Date
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Represents the oauth2 token
  */
-trait OauthToken {
-
-  /**
-   * @return the resource owner of the token
-   */
-  def ownerId: String
-
-  /**
-   * @return the client of the token
-   */
-  def clientId: String
-
+trait OauthToken extends OauthTokenBase {
   /**
    * @return the value of the token
    */
-  def accessToken: String
+  def accessToken: String = value
 
   /**
    * @return the type of the token. Ex: Bearer
@@ -29,37 +20,9 @@ trait OauthToken {
   def tokenType: String
 
   /**
-   * @return true if the token is revoked
-   *
-   * The authorization endpoint revoke a token just before
-   * issuing a new one from the refresh token value
-   */
-  def revoked: Boolean
-
-  /**
-   * @return the creation timestamp of the code
-   */
-  def issueAt: Long
-
-  /**
-   * @return the life time of the token in milliseconds
-   */
-  def expiresIn: Option[Long]
-
-  /**
    * @return the refresh token value of the token
    */
   def refreshToken: Option[String]
-
-  /**
-   * @return the scope of the token
-   */
-  def scopes: Option[Seq[String]]
-
-  def hasExpired: Boolean = {
-    expiresIn.exists(_ + issueAt < new Date().getTime)
-  }
-
 }
 
 trait OauthTokenFactory[TO <: OauthToken] {
@@ -74,12 +37,12 @@ trait OauthTokenRepository[TO <: OauthToken] {
 
 }
 
-class BasicOauthToken(val ownerId: String,
+class BasicOauthToken(val value: String,
+                      val ownerId: String,
                       val clientId: String,
-                      val accessToken: String,
                       val tokenType: String,
-                      val issueAt: Long = new Date().getTime,
+                      val issueAt: Instant = Instant.now,
+                      val expiresIn: FiniteDuration = OAuth.MaximumLifetime,
                       val revoked: Boolean = false,
-                      val expiresIn: Option[Long] = None,
                       val refreshToken: Option[String] = None,
                       val scopes: Option[Seq[String]] = None) extends OauthToken

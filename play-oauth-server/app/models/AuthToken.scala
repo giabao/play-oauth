@@ -8,7 +8,7 @@ import scalikejdbc._
 import scalikejdbc.async._
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{FiniteDuration, DurationInt}
 import scala.language.postfixOps
 
 case class AuthToken(id:Long,
@@ -16,50 +16,23 @@ case class AuthToken(id:Long,
                      tokenType: String,
                      permissionId: Long,
                      permission: Option[Permission] = None,
-                     lifetime: Long,
+                     lifetime: FiniteDuration,
                      revokedAt: Option[DateTime],
                      refreshToken: Option[String] = None,
-                     createdAt: DateTime) extends OauthToken[User, App] with ShortenedNames{
-
-  def accessToken: String = value
+                     createdAt: DateTime) extends OauthToken with ShortenedNames{
   def client: App = permission.flatMap(_.app).orNull
   def owner: User = permission.flatMap(_.user).orNull
   def revoked: Boolean = permission.exists(_.revokedAt.isDefined) || revokedAt.isDefined
   def scopes: Option[Seq[String]] = permission.flatMap(_.scopes)
-  def expiresIn: Option[Long] = Some(lifetime)
+  def expiresIn = lifetime
 
   def revoke(implicit session: AsyncDBSession, ctx: EC): Future[AuthToken] = AuthToken.revoke(this)
 
-  def issueAt: Long = createdAt.getMillis
+  def issueAt: Long = createdAt.getMillis / 1000
 }
 
 object AuthToken extends SQLSyntaxSupport[AuthToken] with ShortenedNames {
-
-  implicit val writes: Writes[AuthToken] = (
-    (__ \ "id").write[Long] ~
-      (__ \ "value").write[String] ~
-      (__ \ "tokenType").write[String] ~
-      (__ \ "permission").writeNullable[Permission] ~
-      (__ \ "lifetime").write[Long] ~
-      (__ \ "revokedAt").writeNullable[DateTime] ~
-      (__ \ "refreshToken").writeNullable[String] ~
-      (__ \ "createdAt").write[DateTime]
-    )(token => (token.id, token.value, token.tokenType, token.permission, token.lifetime, token.revokedAt, token.refreshToken, token.createdAt))
-
-  implicit val reads: Reads[AuthToken] = (
-    (__ \ "id").read[Long] ~
-      (__ \ "value").read[String] ~
-      (__ \ "tokenType").read[String] ~
-      (__ \ "permission").readNullable[Permission] ~
-      (__ \ "lifetime").read[Long] ~
-      (__ \ "revokedAt").readNullable[DateTime] ~
-      (__ \ "refreshToken").readNullable[String] ~
-      (__ \ "createdAt").read[DateTime]
-    )(
-      (id, value, tokenType, permission, lifetime, revokedAt, refreshToken, createdAt) =>
-        AuthToken(id, value, tokenType, permission.map(_.id).getOrElse(0), permission, lifetime, revokedAt, refreshToken, createdAt)
-    )
-
+  implicit val fmt = Json.format[AuthToken]
 
   override val columnNames: Seq[String] = Seq("id", "value", "token_type", "permission_id", "lifetime", "revoked_at", "refresh_token", "created_at")
 

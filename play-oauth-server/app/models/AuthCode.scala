@@ -1,5 +1,7 @@
 package models
 
+import java.time.Instant
+
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.domain.OauthCode
 import org.joda.time.DateTime
@@ -14,13 +16,13 @@ case class AuthCode(id: Long,
                     permission: Option[Permission] = None,
                     scopes: Option[Seq[String]],
                     redirectUri: Option[String],
-                    createdAt: DateTime,
-                    revokedAt: Option[DateTime]) extends ShortenedNames with OauthCode[User, App] {
+                    createdAt: Instant,
+                    revokedAt: Option[DateTime]) extends ShortenedNames with OauthCode {
 
   def owner: User = permission.flatMap(_.user).orNull
-  def issueAt: Long = createdAt.getMillis
+  def issueAt = createdAt
   def client: App = permission.flatMap(_.app).orNull
-  def expireIn: Long = OAuth.MaximumLifetime.toMillis
+  def expiresIn = OAuth.MaximumLifetime
   def revoked: Boolean = revokedAt.isDefined
 
   def revoke(implicit session: AsyncDBSession, ctx: EC): Future[AuthCode] = AuthCode.revoke(this)

@@ -1,10 +1,12 @@
+import java.time.Instant
+
 import fr.njin.playoauth.as.{OauthError, endpoints}
 import endpoints.{AuthorizationEndpoint, TokenEndpoint}
 import fr.njin.playoauth.as.endpoints.ClientAuthentication
 import fr.njin.playoauth.common.domain._
 import fr.njin.playoauth.common.OAuth
 import fr.njin.playoauth.common.request.TokenResponse
-import java.util.{UUID, Date}
+import java.util.UUID
 import org.specs2.specification.Scope
 import play.api.{Configuration, Environment}
 import play.api.i18n.{DefaultLangs, MessagesApi, DefaultMessagesApi}
@@ -13,6 +15,7 @@ import play.api.mvc._
 import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
+import com.sandinh.util.TimeUtil._
 
 case class User(username:String,
                 password:String,
@@ -41,7 +44,7 @@ trait Endpoint extends Scope {
 
   lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode](codes){
     def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthCode] = Future.successful {
-      val code = new BasicOauthCode(UUID.randomUUID().toString, ownerId, clientId, new Date().getTime, redirectUri = redirectUri, scopes = scopes)
+      val code = new BasicOauthCode(UUID.randomUUID().toString, ownerId, clientId, redirectUri = redirectUri, scopes = scopes)
       codes = codes + code
       code
     }
@@ -49,7 +52,7 @@ trait Endpoint extends Scope {
 
   lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken](tokens){
     def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthToken] = Future.successful{
-      val token = new BasicOauthToken(ownerId, clientId, UUID.randomUUID().toString, "example")
+      val token = new BasicOauthToken(UUID.randomUUID().toString, ownerId, clientId, "example")
       tokens = tokens + token
       token
     }
@@ -118,10 +121,10 @@ trait EndPointWithClients extends Endpoint {
   )))
 
   override lazy val codes = Set(
-    new BasicOauthCode(AuthorizationCode, Username, ClientWithCode, new Date().getTime),
-    new BasicOauthCode(ExpiredAuthorizationCode, Username, ClientWithCode, new Date().getTime - OAuth.MaximumLifetime.toMillis),
-    new BasicOauthCode(RevokedAuthorizationCode, Username, ClientWithCode, new Date().getTime, revoked = true),
-    new BasicOauthCode(AnotherAuthorizationCode, Username, AnotherClientWithCode, new Date().getTime, redirectUri = Some(RedirectURI))
+    new BasicOauthCode(AuthorizationCode, Username, ClientWithCode),
+    new BasicOauthCode(ExpiredAuthorizationCode, Username, ClientWithCode, Instant.now - OAuth.MaximumLifetime),
+    new BasicOauthCode(RevokedAuthorizationCode, Username, ClientWithCode, revoked = true),
+    new BasicOauthCode(AnotherAuthorizationCode, Username, AnotherClientWithCode, redirectUri = Some(RedirectURI))
   )
 
   override lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient](

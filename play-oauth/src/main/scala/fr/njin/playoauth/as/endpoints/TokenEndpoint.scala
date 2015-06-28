@@ -12,7 +12,6 @@ import OauthError._
 import play.api.libs.json.{JsValue, Writes, Json}
 import fr.njin.playoauth.common.request._
 import Requests._
-import java.util.Date
 import fr.njin.playoauth.common.request.PasswordTokenRequest
 import fr.njin.playoauth.common.request.AuthorizationCodeTokenRequest
 import fr.njin.playoauth.common.request.ClientCredentialsTokenRequest
@@ -80,11 +79,8 @@ trait Token[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner, TO <: O
   }
 
   val codeExpireValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
-    if(new Date().getTime < (code.issueAt + code.expireIn)) {
-      None
-    } else {
-      Some(invalidGrantError(Some(messages(OAuth.ErrorExpiredAuthorizationCode))))
-    }
+    if(!code.hasExpired) None
+    else Some(invalidGrantError(Some(messages(OAuth.ErrorExpiredAuthorizationCode))))
   }
 
   val codeRevokeValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
