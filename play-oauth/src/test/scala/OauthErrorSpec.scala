@@ -16,7 +16,7 @@ class OauthErrorSpec extends Specification {
         OauthError.invalidScopeError(),
         OauthError.accessDeniedError(),
         OauthError.unsupportedResponseTypeError()
-      ).map(Json.toJson(_).toString) must beEqualTo(Seq(
+      ).map(Json.toJson(_).toString()) must beEqualTo(Seq(
         "{\"error\":\"invalid_request\"}",
         "{\"error\":\"invalid_client\"}",
         "{\"error\":\"invalid_grant\"}",

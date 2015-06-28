@@ -14,20 +14,21 @@ import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
 
-case class User(username:String, password:String, permissions:Map[BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]) extends OauthResourceOwner
-
-object User extends OauthResourceOwnerPermission[User, BasicOauthClient, BasicOAuthPermission[BasicOauthClient]]{
-  def apply(owner: User, client: BasicOauthClient): Future[Option[BasicOAuthPermission[BasicOauthClient]]] =
-    Future.successful(owner.permissions.get(client))
+case class User(username:String,
+                password:String,
+                /** key is id of OauthClient */
+                permissions:Map[String, BasicOAuthPermission])
+    extends OauthResourceOwner {
+  def id = username
 }
 
 trait Endpoint extends Scope {
 
   val timeout = 1.seconds
 
-  lazy val user:Option[User] = None
-  lazy val codes: Set[BasicOauthCode[User, BasicOauthClient]] = Set.empty
-  lazy val tokens: Set[BasicOauthToken[User, BasicOauthClient]] = Set.empty
+  lazy val userRep = new InMemoryOauthRORep[User]()
+  lazy val codes: Set[BasicOauthCode] = Set.empty
+  lazy val tokens: Set[BasicOauthToken] = Set.empty
 
   trait ExampleClientAuthentication extends ClientAuthentication[BasicOauthClient] {
     def authenticate(request: Request[AnyContentAsFormUrlEncoded]): Future[Either[Option[BasicOauthClient], OauthError]] =
@@ -38,17 +39,17 @@ trait Endpoint extends Scope {
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
   lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
 
-  lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode[User, BasicOauthClient], User, BasicOauthClient](codes){
-    def apply(owner: User, client: BasicOauthClient, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthCode[User, BasicOauthClient]] = Future.successful {
-      val code:BasicOauthCode[User, BasicOauthClient] = new BasicOauthCode(UUID.randomUUID().toString, owner, client, new Date().getTime, redirectUri = redirectUri, scopes = scopes)
+  lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode](codes){
+    def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthCode] = Future.successful {
+      val code = new BasicOauthCode(UUID.randomUUID().toString, ownerId, clientId, new Date().getTime, redirectUri = redirectUri, scopes = scopes)
       codes = codes + code
       code
     }
   }
 
-  lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken[User, BasicOauthClient], User, BasicOauthClient](tokens){
-    def apply(owner: User, client: BasicOauthClient, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthToken[User, BasicOauthClient]] = Future.successful{
-      val token:BasicOauthToken[User, BasicOauthClient] = new BasicOauthToken(owner, client, UUID.randomUUID().toString, "example")
+  lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken](tokens){
+    def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthToken] = Future.successful{
+      val token = new BasicOauthToken(ownerId, clientId, UUID.randomUUID().toString, "example")
       tokens = tokens + token
       token
     }
@@ -61,29 +62,31 @@ trait Endpoint extends Scope {
     new DefaultMessagesApi(env, cfg, langs)
   }
 
-  lazy val authzEndpoint = new AuthorizationEndpoint[
-    BasicOauthClient, BasicOauthScope, BasicOauthCode[User, BasicOauthClient], User,
-    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
-      User, repository, scopeRepository, codeRepository, tokenRepository) {
+  object Permissions extends OauthResourceOwnerPermission[BasicOAuthPermission]{
+    def apply(ownerId: String, clientId: String): Future[Option[BasicOAuthPermission]] =
+      userRep.find(ownerId).map {
+        case None => None
+        case Some(user) => user.permissions.get(clientId)
+      }
+  }
+
+  lazy val authzEndpoint = new AuthorizationEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode, User, BasicOAuthPermission, BasicOauthToken](
+      Permissions, repository, scopeRepository, codeRepository, tokenRepository) {
     def messagesApi = defaultMessagesApi
   }
-  lazy val tokenEndpoint = new TokenEndpoint[
-    BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User,
-    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
+  lazy val tokenEndpoint = new TokenEndpoint[BasicOauthClient, BasicOauthCode, User, BasicOauthToken](
       repository, codeRepository, tokenRepository, tokenRepository) with ExampleClientAuthentication {
     def messagesApi = defaultMessagesApi
   }
-  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new TokenEndpoint[
-    BasicOauthClient, BasicOauthCode[User, BasicOauthClient], User,
-    BasicOAuthPermission[BasicOauthClient], BasicOauthToken[User, BasicOauthClient]](
+  lazy val tokenWithOnlyAuthorisationCodeEndpoint = new TokenEndpoint[BasicOauthClient, BasicOauthCode, User, BasicOauthToken](
       repository, codeRepository, tokenRepository, tokenRepository, Seq(OAuth.GrantType.AuthorizationCode)) with ExampleClientAuthentication {
     def messagesApi = defaultMessagesApi
   }
 
-  def userByUsername: (String, String) => Future[Option[User]] = (u,p) => Future.successful(user.filter(user => user.username == u && user.password == p))
+  def userByUsername: (String, String) => Future[Option[User]] = (u,p) => userRep.find(u).map(_.filter(_.password == p))
   def userOfClient: BasicOauthClient => Future[Option[User]] = client => Future.successful(Some(User(client.id, client.id, Map.empty)))
 
-  def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(r => user)(
+  def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(r => userRep.find(Constants.Username))(
     (ar,c) => r => Future.successful(Results.Unauthorized("")),
     (ar,c) => r => Future.successful(Results.Forbidden("")),
     error => Future.successful(Results.NotFound(error)),
@@ -104,21 +107,21 @@ trait EndPointWithClients extends Endpoint {
   val anotherClientWithCode = new BasicOauthClient(AnotherClientWithCode, AnotherClientWithCode, Seq(OAuth.ResponseType.Code), OAuth.GrantType.All, Some(Seq(RedirectURI)))
 
 
-  override lazy val user: Option[User] = Some(User(Username, Password,
+  override lazy val userRep = new InMemoryOauthRORep[User](Map(Username -> User(Username, Password,
     (Seq(
-      new BasicOAuthPermission[BasicOauthClient](true, ownerAuthorizedClient, None, None),
-      new BasicOAuthPermission[BasicOauthClient](false, ownerUnauthorizedClient, None, None),
-      new BasicOAuthPermission[BasicOauthClient](false, anotherOwnerUnauthorizedClient, None, None),
-      new BasicOAuthPermission[BasicOauthClient](true, clientWithCode, None, None),
-      new BasicOAuthPermission[BasicOauthClient](true, anotherClientWithCode, None, None)
-    ) map (p => p.client -> p)).toMap
-  ))
+      new BasicOAuthPermission(true, ClientWithURI, None, None),
+      new BasicOAuthPermission(false, ClientWithURIUnauthorized, None, None),
+      new BasicOAuthPermission(false, UnauthorizedClient, None, None),
+      new BasicOAuthPermission(true, ClientWithCode, None, None),
+      new BasicOAuthPermission(true, AnotherClientWithCode, None, None)
+    ) map (p => p.clientId -> p)).toMap
+  )))
 
   override lazy val codes = Set(
-    new BasicOauthCode[User, BasicOauthClient](AuthorizationCode, user.get, clientWithCode, new Date().getTime),
-    new BasicOauthCode[User, BasicOauthClient](ExpiredAuthorizationCode, user.get, clientWithCode, new Date().getTime - OAuth.MaximumLifetime.toMillis),
-    new BasicOauthCode[User, BasicOauthClient](RevokedAuthorizationCode, user.get, clientWithCode, new Date().getTime, revoked = true),
-    new BasicOauthCode[User, BasicOauthClient](AnotherAuthorizationCode, user.get, anotherClientWithCode, new Date().getTime, redirectUri = Some(RedirectURI))
+    new BasicOauthCode(AuthorizationCode, Username, ClientWithCode, new Date().getTime),
+    new BasicOauthCode(ExpiredAuthorizationCode, Username, ClientWithCode, new Date().getTime - OAuth.MaximumLifetime.toMillis),
+    new BasicOauthCode(RevokedAuthorizationCode, Username, ClientWithCode, new Date().getTime, revoked = true),
+    new BasicOauthCode(AnotherAuthorizationCode, Username, AnotherClientWithCode, new Date().getTime, redirectUri = Some(RedirectURI))
   )
 
   override lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient](

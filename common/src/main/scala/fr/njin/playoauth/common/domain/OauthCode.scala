@@ -7,11 +7,8 @@ import scala.concurrent.Future
  * Represents the oauth2 code issuing by the authorization server
  *
  * An oauth2 code is issuing for a resource owner and a client. Its value must be unique
- *
- * @tparam RO Type of the resource owner [[fr.njin.playoauth.common.domain.OauthResourceOwner]]
- * @tparam C  Type of the client [[fr.njin.playoauth.common.domain.OauthClient]]
  */
-trait OauthCode[RO <: OauthResourceOwner, C <: OauthClient] {
+trait OauthCode {
 
   /**
    * @return the value of the code. Must be unique.
@@ -20,13 +17,15 @@ trait OauthCode[RO <: OauthResourceOwner, C <: OauthClient] {
 
   /**
    * @return the resource owner of the code.
+   * @see [[fr.njin.playoauth.common.domain.OauthResourceOwner]]
    */
-  def owner: RO
+  def ownerId: String
 
   /**
    * @return the client of the code
+   * @see [[fr.njin.playoauth.common.domain.OauthClient]]
    */
-  def client:C
+  def clientId:String
 
   /**
    * @return the creation timestamp of the code
@@ -60,31 +59,26 @@ trait OauthCode[RO <: OauthResourceOwner, C <: OauthClient] {
  * Factory used to create a code
  *
  * @tparam CO Type of the code
- * @tparam RO Type of the resource owner
- * @tparam C Type of the client
  */
-trait OauthCodeFactory[CO <: OauthCode[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
-  def apply(owner:RO, client:C, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[CO]
+trait OauthCodeFactory[CO <: OauthCode] {
+  def apply(ownerId:String, clientId:String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[CO]
 }
 
 /**
  * Repository used to retrieve a code by its value and to revoke a code
  *
  * @tparam CO Type of the code
- * @tparam RO Type of the resource owner
- * @tparam C Type of the clien
  */
-trait OauthCodeRepository[CO <: OauthCode[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
+trait OauthCodeRepository[CO <: OauthCode] {
   def find(value: String): Future[Option[CO]]
   def revoke(value: String): Future[Option[CO]]
 }
 
-class BasicOauthCode[RO <: OauthResourceOwner, C <: OauthClient]
-                    (val value: String,
-                     val owner:RO,
-                     val client: C,
+class BasicOauthCode(val value: String,
+                     val ownerId:String,
+                     val clientId: String,
                      val issueAt: Long,
                      val expireIn: Long = OAuth.MaximumLifetime.toMillis,
                      val revoked: Boolean = false,
                      val redirectUri: Option[String] = None,
-                     val scopes: Option[Seq[String]] = None) extends OauthCode[RO, C]
+                     val scopes: Option[Seq[String]] = None) extends OauthCode

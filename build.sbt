@@ -5,10 +5,9 @@ import UnidocKeys._
 import com.typesafe.sbt.SbtGit.{GitKeys => git}
 import com.typesafe.sbt.SbtSite._
 import com.typesafe.sbt.SbtGhPages._
+import play.core.PlayVersion.{current => playVersion}
 
-val projectName = "play-oauth"
 val buildVersion = "1.1.0-SNAPSHOT"
-val playVersion = "2.4.1"
 
 lazy val publishSettings = Seq(
   publishMavenStyle := true,
@@ -49,30 +48,28 @@ lazy val commonDependencies = Seq(
   "org.specs2" %% "specs2-core" % "3.3.1" % "test"
 )
 
-lazy val playOAuthCommon = (project in file("common"))
+lazy val `play-oauth-common` = (project in file("common"))
   .settings(buildSettings: _*)
   .settings(
-    name := projectName + "-common",
     libraryDependencies ++= commonDependencies ++ Seq(
       "com.typesafe.play" %% "play-json" % playVersion
     )
   )
 
-lazy val playOAuth = (project in file("play-oauth"))
+lazy val `play-oauth` = (project in file("play-oauth"))
   .settings(buildSettings: _*)
   .settings(
-    name := projectName,
     libraryDependencies ++= commonDependencies ++ Seq(
-      "commons-validator" % "commons-validator" % "1.4.1",
+      "commons-validator" % "commons-validator" % "1.4.1", //FIXME remove?
       "com.typesafe.play" %% "play" % playVersion,
       "com.typesafe.play" %% "play-ws" % playVersion,
       "com.typesafe.play" %% "play-specs2" % playVersion % "test",
       "com.typesafe.play" %% "play-test" % playVersion % "test",
-      "com.netaporter" %% "scala-uri" % "0.4.7" % "test"
+      "com.netaporter"    %% "scala-uri" % "0.4.7" % "test"
     )
   )
-  .dependsOn(playOAuthCommon)
-  .aggregate(playOAuthCommon)
+  .dependsOn(`play-oauth-common`)
+  .aggregate(`play-oauth-common`)
 
 lazy val root = project.in(file("."))
   .settings(buildSettings: _*)
@@ -85,13 +82,12 @@ lazy val root = project.in(file("."))
     git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
   )
   .settings(unidocSettings: _*)
-  .aggregate(playOAuth)
+  .aggregate(`play-oauth`)
 
 
 lazy val `play-oauth-server` = (project in file("play-oauth-server"))
   .enablePlugins(PlayScala)
   .settings(
-    name := projectName + "-server",
     version := buildVersion,
     organization := "fr.njin",
     scalaVersion := "2.11.7",
@@ -110,4 +106,4 @@ lazy val `play-oauth-server` = (project in file("play-oauth-server"))
       "com.typesafe.play"     %% "play-test"                      % playVersion % "test"
     )
   )
-  .dependsOn(playOAuth)
+  .dependsOn(`play-oauth`)

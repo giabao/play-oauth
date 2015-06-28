@@ -10,6 +10,8 @@ import play.api.libs.ws.{WSAuthScheme, WSRequest, WSResponse, WS}
 
 object Oauth2Resource {
 
+  //scopes => RequestHeader => Future[Either[Option[User], scopes?]]
+  //U is ResourceOwner
   type ResourceOwner[U] = Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]]
 
   def scoped[U](scopes: String*)(action: U => EssentialAction)
@@ -29,52 +31,62 @@ object Oauth2Resource {
       }
     )}
 
-  def resourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
-    (tokenRepository: String => Future[Option[TO]])
+  def resourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
+    ( tokenRepository: String => Future[Option[TO]],
+      userRepository: String => Future[Option[U]])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
 
     scopes => request => {
-      token(request).map(tokenRepository(_).map(
-        _.filter(!_.hasExpired)
-         .fold[Either[Option[U], Seq[String]]](Left(None)) { token =>
-          token.scopes.map(tokenScopes => scopes.filter(tokenScopes.contains(_))).filter(_.isEmpty).toRight(Some(token.owner))
+      token(request).map(tokenRepository(_).flatMap(
+        _.filter(!_.hasExpired) match {
+            case None => Future successful Left(None)
+            case Some(tk) =>
+              tk.scopes
+                .map(tokenScopes => scopes.filter(tokenScopes.contains))
+                .filter(_.isEmpty) match {
+                  case None => userRepository(tk.ownerId).map(Left(_))
+                  case Some(diffScopes) => Future successful Right(diffScopes)
+                }
          }
-      )).getOrElse(Future.successful(Left(None)))
+      )).getOrElse(Future successful Left(None))
     }
 
-  def localResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
-    (tokenRepository: OauthTokenRepository[TO, U, C])
+  def localResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
+    (tokenRepository: OauthTokenRepository[TO],
+     userRepository: OauthResourceOwnerRepository[U])
     (implicit token: RequestHeader => Option[String],
      ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
 
-    resourceOwner[TO, U, C](tokenRepository.find)(token, ec)
+    resourceOwner[TO, U](tokenRepository.find, userRepository.find)(token, ec)
 
 
-  def remoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
+  def remoteResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
     (url: String, queryParameter: String = "value")
     (authenticate: WSRequest => WSRequest)
     (fromResponse: WSResponse => Option[TO])
+    (userRepository: String => Future[Option[U]])
     (implicit app: Application,
      token: RequestHeader => Option[String],
      ec: ExecutionContext): ResourceOwner[U] = {
 
-    resourceOwner[TO, U, C](value => {
+    def tokenRepository(value: String) =
       authenticate(WS.url(url).withQueryString(queryParameter -> value))
-        .get().map(fromResponse)
-    })(token, ec)
+      .get().map(fromResponse)
 
+    resourceOwner[TO, U](tokenRepository, userRepository)(token, ec)
   }
 
-  def basicAuthRemoteResourceOwner[TO <: OauthToken[U, C], U <: OauthResourceOwner, C <: OauthClient]
+  def basicAuthRemoteResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
     (url: String, username: String, password: String, queryParameter: String = "value")
     (fromResponse: WSResponse => Option[TO])
+    (userRepository: String => Future[Option[U]])
     (implicit app: Application,
      token: RequestHeader => Option[String],
      ec: ExecutionContext): ResourceOwner[U] = {
 
-    remoteResourceOwner[TO, U, C](url, queryParameter) { ws =>
+    remoteResourceOwner[TO, U](url, queryParameter) { ws =>
       ws.withAuth(username, password, WSAuthScheme.BASIC)
-    }(fromResponse)
+    }(fromResponse)(userRepository)
   }
 }

@@ -5,21 +5,18 @@ import java.util.Date
 
 /**
  * Represents the oauth2 token
- *
- * @tparam RO Type of the resource owner
- * @tparam C Type of the client
  */
-trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
+trait OauthToken {
 
   /**
    * @return the resource owner of the token
    */
-  def owner: RO
+  def ownerId: String
 
   /**
    * @return the client of the token
    */
-  def client: C
+  def clientId: String
 
   /**
    * @return the value of the token
@@ -65,11 +62,11 @@ trait OauthToken[RO <: OauthResourceOwner, C <: OauthClient] {
 
 }
 
-trait OauthTokenFactory[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
-  def apply(owner:RO, client: C, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[TO]
+trait OauthTokenFactory[TO <: OauthToken] {
+  def apply(ownerId:String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[TO]
 }
 
-trait OauthTokenRepository[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C <: OauthClient] {
+trait OauthTokenRepository[TO <: OauthToken] {
 
   def find(value: String): Future[Option[TO]]
   def findForRefreshToken(value: String): Future[Option[TO]]
@@ -77,13 +74,12 @@ trait OauthTokenRepository[TO <: OauthToken[RO, C], RO <: OauthResourceOwner, C 
 
 }
 
-class BasicOauthToken[RO <: OauthResourceOwner, C <: OauthClient](
-                      val owner: RO,
-                      val client: C,
+class BasicOauthToken(val ownerId: String,
+                      val clientId: String,
                       val accessToken: String,
                       val tokenType: String,
                       val issueAt: Long = new Date().getTime,
                       val revoked: Boolean = false,
                       val expiresIn: Option[Long] = None,
                       val refreshToken: Option[String] = None,
-                      val scopes: Option[Seq[String]] = None) extends OauthToken[RO, C]
+                      val scopes: Option[Seq[String]] = None) extends OauthToken

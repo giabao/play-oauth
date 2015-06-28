@@ -33,16 +33,16 @@ import fr.njin.playoauth.Utils
  * @tparam P Permission type
  * @tparam TO Token type
  */
-trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
-                    P <: OauthPermission[C], TO <: OauthToken[RO, C]] extends I18nSupport {
+trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode, RO <: OauthResourceOwner,
+                    P <: OauthPermission, TO <: OauthToken] extends I18nSupport {
 
   val logger:Logger = AuthorizationEndpoint.logger
 
-  def permissions: OauthResourceOwnerPermission[RO, C, P]
+  def permissions: OauthResourceOwnerPermission[P]
   def clientRepository: OauthClientRepository[C]
   def scopeRepository: OauthScopeRepository[SC]
-  def codeFactory: OauthCodeFactory[CO, RO, C]
-  def tokenFactory: OauthTokenFactory[TO, RO, C]
+  def codeFactory: OauthCodeFactory[CO]
+  def tokenFactory: OauthTokenFactory[TO]
   def supportedResponseType: Seq[String]
 
   /**
@@ -256,7 +256,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    *
    * @return the result of the authorization
    */
-  def authorize(owner:RequestHeader => Option[RO])
+  def authorize(owner:RequestHeader => Future[Option[RO]])
                (onUnauthenticated:AuthzCallback,
                 onUnauthorized:AuthzCallback,
                 onNotFound: String => Future[Result],
@@ -309,21 +309,21 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
    * @param ec an execution context
    * @return the result of the authorization
    */
-  def perform(owner:RequestHeader => Option[RO])
+  def perform(owner:RequestHeader => Future[Option[RO]])
              (onUnauthenticated:AuthzCallback,
               onUnauthorized:AuthzCallback)
              (implicit ec:ExecutionContext): AuthzCallback =
     (authzRequest, oauthClient) => implicit request => {
-      owner(request).fold(onUnauthenticated(authzRequest, oauthClient)(request)) { resourceOwner =>
-        permissions(resourceOwner, oauthClient).flatMap(_.fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
+      owner(request).flatMap(_.fold(onUnauthenticated(authzRequest, oauthClient)(request)) { resourceOwner =>
+        permissions(resourceOwner.id, oauthClient.id).flatMap(_.fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
           if(permission.authorized(authzRequest)) {
-            codeFactory(resourceOwner, oauthClient, authzRequest.redirectUri, authzRequest.scopes)
+            codeFactory(resourceOwner.id, oauthClient.id, authzRequest.redirectUri, authzRequest.scopes)
               .flatMap { code =>
                 authzRequest.responseType match {
                   case OAuth.ResponseType.Code =>
                     authzAccept(code)(authzRequest, oauthClient)(request)
                   case OAuth.ResponseType.Token =>
-                    tokenFactory(code.owner, code.client, authzRequest.redirectUri, code.scopes).flatMap { token =>
+                    tokenFactory(code.ownerId, code.clientId, authzRequest.redirectUri, code.scopes).flatMap { token =>
                       authzAccept(token)(authzRequest, oauthClient)(request)
                     }
                 }
@@ -332,7 +332,7 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
             authzDeny(authzRequest, oauthClient)(request)
           }
         })
-      }
+      })
     }
 
   /**
@@ -387,13 +387,13 @@ trait Authorization[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], 
     }
 }
 
-abstract class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
-                            P <: OauthPermission[C], TO <: OauthToken[RO, C]](
-  val permissions: OauthResourceOwnerPermission[RO, C, P],
+abstract class AuthorizationEndpoint[C <: OauthClient, SC <: OauthScope, CO <: OauthCode, RO <: OauthResourceOwner,
+                                     P <: OauthPermission, TO <: OauthToken](
+  val permissions: OauthResourceOwnerPermission[P],
   val clientRepository: OauthClientRepository[C],
   val scopeRepository: OauthScopeRepository[SC],
-  val codeFactory: OauthCodeFactory[CO, RO, C],
-  val tokenFactory: OauthTokenFactory[TO, RO, C],
+  val codeFactory: OauthCodeFactory[CO],
+  val tokenFactory: OauthTokenFactory[TO],
   val supportedResponseType: Seq[String] = OAuth.ResponseType.All
 ) extends Authorization[C, SC, CO, RO, P, TO]
 

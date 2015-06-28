@@ -54,7 +54,7 @@ object Authorization {
   def authz(permission:Option[Long]) = InTx { implicit tx =>
     WithUser(tx, dbContext) { implicit user =>
       Action.async(parse.empty) { request =>
-        new AuthorizationEndpointController(permission).authorize( _ => Some(user))(
+        new AuthorizationEndpointController(permission).authorize( _ => Future successful Some(user))(
           //this can't happen because this action is executed with an user in the context
           (ar, c) => implicit r => Future.failed(new Exception()),
           //If unauthorized, we show a permission form to the user
@@ -111,9 +111,9 @@ object Authorization {
  * @param ec the database execution context
  */
 class OwnerPermissions(lastPermission: Option[Long])(implicit session:AsyncDBSession, ec: ExecutionContext)
-  extends OauthResourceOwnerPermission[User, App, Permission]{
+  extends OauthResourceOwnerPermission[Permission]{
 
-  def apply(user: User, client: App): Future[Option[Permission]] = Permission.find(user, client).map(_.flatMap { p =>
+  def apply(userId: Long, clientId: String): Future[Option[Permission]] = Permission.find(userId, clientId).map(_.flatMap { p =>
     //If not granted and is not lastPermission, return None
     if(!p.decision) lastPermission.flatMap(id => if(id != p.id) None else Some(p))
     else Some(p)

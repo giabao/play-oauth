@@ -1,6 +1,8 @@
 package models
 
-import fr.njin.playoauth.common.domain.OauthResourceOwner
+import java.util.UUID
+
+import fr.njin.playoauth.common.domain.{OauthResourceOwnerRepository, OauthResourceOwner}
 import org.mindrot.jbcrypt.BCrypt
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -16,7 +18,7 @@ import scala.concurrent.Future
  * Date: 01/10/13
  */
 
-case class User(id:Long,
+case class User(id:String,
                 email: String,
                 password: String,
                 firstName: String,
@@ -35,30 +37,15 @@ case class User(id:Long,
     }
 }
 
-object User extends SQLSyntaxSupport[User] with ShortenedNames {
-
-  implicit val writes: Writes[User] =
-    (
-      (__ \ "id").write[Long] ~
-      (__ \ "email").write[String] ~
-      (__ \ "firstName").write[String] ~
-      (__ \ "lastName").write[String]
-    )(user => (user.id, user.email, user.firstName, user.lastName))
-
-  implicit val reads: Reads[User] =
-    (
-      (__ \ "id").read[Long] ~
-      (__ \ "email").read[String] ~
-      (__ \ "firstName").read[String] ~
-      (__ \ "lastName").read[String]
-    )((id, email, firstName, lastName) => User(id, email, null, firstName, lastName)) //TODO Modify the model to remove the null password
+object User extends SQLSyntaxSupport[User] with ShortenedNames with OauthResourceOwnerRepository[User] {
+  implicit val fmt = Json.format[User]
 
   override val tableName = "users"
   override val columnNames = Seq("id", "email", "password", "first_name", "last_name")
 
   def apply(c: SyntaxProvider[User])(rs: WrappedResultSet): User = apply(c.resultName)(rs)
   def apply(c: ResultName[User])(rs: WrappedResultSet): User = new User(
-    id = rs.long(c.id),
+    id = rs.string(c.id),
     email = rs.string(c.email),
     password = rs.string(c.password),
     firstName = rs.string(c.firstName),
@@ -68,7 +55,7 @@ object User extends SQLSyntaxSupport[User] with ShortenedNames {
   // SyntaxProvider objects
   lazy val u = User.syntax("u")
 
-  def find(id: Long)(implicit session: AsyncDBSession, cxt: EC): Future[Option[User]] = {
+  def find(id: String)(implicit session: AsyncDBSession, cxt: EC): Future[Option[User]] = {
     withSQL {
       select
         .from(User as u)
@@ -86,17 +73,18 @@ object User extends SQLSyntaxSupport[User] with ShortenedNames {
 
   def create(email: String, password: String, firstName: String, lastName: String)
             (implicit session: AsyncDBSession, ctx: EC): Future[User] = {
-
     val hashpw: String = BCrypt.hashpw(password, BCrypt.gensalt())
+    val id = UUID.randomUUID().toString
 
     withSQL {
       insert.into(User).namedValues(
+        column.id -> id,
         column.email -> email,
         column.password -> hashpw,
         column.firstName -> firstName,
         column.lastName -> lastName
       )
-    }.updateAndReturnGeneratedKey().future.map(User(_, email, hashpw, firstName, lastName))
+    }.update().future.map(_ => User(id, email, hashpw, firstName, lastName))
   }
 
   def save(u: User)(implicit session: AsyncDBSession, ctx: EC): Future[User] = {
@@ -110,7 +98,7 @@ object User extends SQLSyntaxSupport[User] with ShortenedNames {
     }.update.future.map(_ => u)
   }
 
-  def destroy(id: Long)(implicit session: AsyncDBSession, ctx: EC): Future[Unit] = {
+  def destroy(id: String)(implicit session: AsyncDBSession, ctx: EC): Future[Unit] = {
     withSQL {
       delete.from(User).where.eq(column.id, id)
     }.update.future.map(_.toLong)

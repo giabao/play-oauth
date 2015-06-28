@@ -30,7 +30,7 @@ object TokenResponse {
    * @param t The token
    * @return The response
    */
-  def apply(t:OauthToken[_,_]): TokenResponse = TokenResponse(t.accessToken, t.tokenType, t.expiresIn, t.refreshToken, t.scopes)
+  def apply(t:OauthToken): TokenResponse = TokenResponse(t.accessToken, t.tokenType, t.expiresIn, t.refreshToken, t.scopes)
 
   /**
    * Convert the response token to a json

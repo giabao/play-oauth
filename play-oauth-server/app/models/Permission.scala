@@ -26,14 +26,14 @@ case class Permission(id: Long,
                       redirectUri: Option[String],
                       state: Option[String],
                       createdAt: DateTime,
-                      revokedAt: Option[DateTime]) extends ShortenedNames with OauthPermission[App] {
+                      revokedAt: Option[DateTime]) extends OauthPermission {
 
 
   val client: App = app.orNull
   def authorized(request: AuthzRequest): Boolean = decision && revokedAt.isEmpty && request.redirectUri == redirectUri
 }
 
-object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
+object Permission extends SQLSyntaxSupport[Permission] {
 
   implicit val writes: Writes[Permission] =
     (
@@ -118,8 +118,8 @@ object Permission extends SQLSyntaxSupport[Permission] with ShortenedNames {
       query(userId, appId).limit(1)
     }.map(Permission(p, u, a)).single().future()
 
-  def find(user: User, app: App)(implicit session: AsyncDBSession, cxt: EC): Future[Option[Permission]] =
-    find(user.id, app.pid)
+  def find(userId: Long, app: App)(implicit session: AsyncDBSession, cxt: EC): Future[Option[Permission]] =
+    find(userId, app.pid)
 
   def authorizedCount(userId: Long)(implicit session: AsyncDBSession, cxt: EC): Future[Long] =
     withSQL {

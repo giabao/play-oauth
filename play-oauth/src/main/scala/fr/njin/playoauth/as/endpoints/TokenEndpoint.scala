@@ -45,17 +45,16 @@ trait SecretKeyClientAuthentication[C <: OauthClient] extends ClientAuthenticati
 
 }
 
-trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
-            P <: OauthPermission[C], TO <: OauthToken[RO, C]] extends I18nSupport {
+trait Token[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner, TO <: OauthToken] extends I18nSupport {
 
   this: ClientAuthentication[C] =>
 
   val logger:Logger = TokenEndpoint.logger
 
   def clientRepository: OauthClientRepository[C]
-  def codeRepository: OauthCodeRepository[CO, RO, C]
-  def tokenFactory: OauthTokenFactory[TO, RO, C]
-  def tokenRepository: OauthTokenRepository[TO, RO, C]
+  def codeRepository: OauthCodeRepository[CO]
+  def tokenFactory: OauthTokenFactory[TO]
+  def tokenRepository: OauthTokenRepository[TO]
   def supportedGrantType: Seq[String]
 
   type TokenValidation = (TokenRequest, C) => (ExecutionContext, Messages) => Future[Option[OauthError]]
@@ -73,7 +72,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   val tokenValidator = List(clientGrantTypeValidation)
 
   val codeClientValidation:CodeValidation = (tokenRequest, client, code) => (ec, messages) => Future.successful {
-    if(code.client.id == client.id) {
+    if(code.clientId == client.id) {
       None
     } else {
       Some(invalidGrantError(Some(messages(OAuth.ErrorClientNotMatch))))
@@ -150,7 +149,8 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
     ))
   }
 
-  def token(owner: (String, String) => Future[Option[RO]], clientOwner: C => Future[Option[RO]])
+  def token(owner: (String, String) => Future[Option[RO]], //(username, password) => ResourceOwner
+            clientOwner: C => Future[Option[RO]])
            (implicit ec:ExecutionContext,
                      writes: Writes[TokenResponse],
                      errorWrites: Writes[OauthError]): Request[AnyContentAsFormUrlEncoded] => Future[Result] =
@@ -188,7 +188,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
 
     }
 
-  def perform(owner: (String, String) => Future[Option[RO]],
+  def perform(owner: (String, String) => Future[Option[RO]], //(username, password) => ResourceOwner
               clientOwner: C => Future[Option[RO]])
              (implicit ec:ExecutionContext,
                        writes: Writes[TokenResponse],
@@ -204,7 +204,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
               case Some(e) => Future.successful(BadRequest(errorToJson(e.get)))
               case _ => for {
                 consumed <- codeRepository.revoke(t.code)
-                token <- issueAToken(code.owner, code.client, t.redirectUri, code.scopes)
+                token <- issueAToken(code.ownerId, code.clientId, t.redirectUri, code.scopes)
               } yield token
             }
           })
@@ -213,14 +213,14 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
           owner(t.username, t.password).flatMap(_.fold(
             Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))
           ){ resourceOwner =>
-             issueAToken(resourceOwner, oauthClient, None, t.scope)
+             issueAToken(resourceOwner.id, oauthClient.id, None, t.scope)
           })
 
         case t:ClientCredentialsTokenRequest =>
           clientOwner(oauthClient).flatMap(_.fold(
             Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorInvalidCredentials))))))
           ){ resourceOwner =>
-            issueAToken(resourceOwner, oauthClient, None, t.scope)
+            issueAToken(resourceOwner.id, oauthClient.id, None, t.scope)
           })
 
         case t:RefreshTokenRequest =>
@@ -229,7 +229,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
           ){ previousToken =>
             for {
               Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)
-              token <- issueAToken(revoked.owner, revoked.client, None, revoked.scopes)
+              token <- issueAToken(revoked.ownerId, revoked.clientId, None, revoked.scopes)
             } yield token
           })
 
@@ -238,9 +238,9 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
       }
     }
 
-  def issueAToken(owner: RO, client: C, redirectUri: Option[String], scope: Option[Seq[String]])
+  def issueAToken(ownerId: String, clientId: String, redirectUri: Option[String], scope: Option[Seq[String]])
                  (implicit ec:ExecutionContext, writes: Writes[TokenResponse]): Future[Result] =
-    tokenFactory(owner, client, redirectUri, scope).map { token =>
+    tokenFactory(ownerId, clientId, redirectUri, scope).map { token =>
       Ok(Json.toJson(TokenResponse(token)))
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
     }
@@ -257,7 +257,7 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
       _.fold(onUnauthorized) { client =>
         tokenRepository.find(token).flatMap {
           _.fold(onTokenNotFound) { token =>
-            if(token.client.id == client.id) {
+            if(token.clientId == client.id) {
               ok(token)
             } else {
               onForbidden
@@ -270,13 +270,13 @@ trait Token[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner,
   }
 }
 
-abstract class TokenEndpoint[C <: OauthClient, CO <: OauthCode[RO, C], RO <: OauthResourceOwner, P <: OauthPermission[C], TO <: OauthToken[RO, C]](
+abstract class TokenEndpoint[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner, TO <: OauthToken](
   val clientRepository: OauthClientRepository[C],
-  val codeRepository: OauthCodeRepository[CO, RO, C],
-  val tokenFactory: OauthTokenFactory[TO, RO, C],
-  val tokenRepository: OauthTokenRepository[TO, RO, C],
+  val codeRepository: OauthCodeRepository[CO],
+  val tokenFactory: OauthTokenFactory[TO],
+  val tokenRepository: OauthTokenRepository[TO],
   val supportedGrantType: Seq[String] = OAuth.GrantType.All
-) extends Token[C, CO, RO, P, TO] {
+) extends Token[C, CO, RO, TO] {
   this: ClientAuthentication[C] =>
 }
 
