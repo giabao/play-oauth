@@ -11,10 +11,6 @@ class InMemoryOauthClientRepository[T <: OauthClient](var clients:Map[String, T]
 
 }
 
-class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T]) extends OauthScopeRepository[T] {
-  def find(id: String*): Future[Map[String, T]] = Future.successful(scopes)
-}
-
 abstract class InMemoryOauthCodeRepository[CO <: OauthCode](var codes: Set[CO] = Set.empty[CO])
   extends OauthCodeRepository[CO] with OauthCodeFactory[CO] {
 
@@ -40,10 +36,14 @@ abstract class InMemoryOauthTokenRepository[TO <: OauthToken](var tokens: Set[TO
 
   def find(value: String): Future[Option[TO]] = Future.successful(tokens.find(_.accessToken == value))
 
-  def findForRefreshToken(value: String): Future[Option[TO]] = Future.successful(tokens.find(_.refreshToken.contains(value)))
+  def revokeByRefreshToken(refreshToken: String): Future[Option[TO]] = findForRefreshToken(refreshToken).map(remove)
 
-  def revoke(value: String): Future[Option[TO]] = find(value).map(_.map { token =>
+  private def findForRefreshToken(value: String) = Future.successful(tokens.find(_.refreshToken.contains(value)))
+
+  def revoke(value: String): Future[Option[TO]] = find(value).map(remove)
+
+  private def remove(t: Option[TO]): Option[TO] = t.map { token =>
     tokens = tokens - token
     token
-  })
+  }
 }

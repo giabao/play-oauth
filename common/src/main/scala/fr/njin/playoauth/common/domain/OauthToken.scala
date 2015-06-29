@@ -30,11 +30,11 @@ trait OauthTokenFactory[TO <: OauthToken] {
 }
 
 trait OauthTokenRepository[TO <: OauthToken] {
-
   def find(value: String): Future[Option[TO]]
-  def findForRefreshToken(value: String): Future[Option[TO]]
+  /** find OauthToken by refreshToken and revoke the accessToken  */
+  def revokeByRefreshToken(refreshToken: String): Future[Option[TO]]
+  /** revoke by accessToken */
   def revoke(value: String): Future[Option[TO]]
-
 }
 
 class BasicOauthToken(val value: String,

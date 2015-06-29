@@ -220,13 +220,10 @@ trait Token[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner, TO <: O
           })
 
         case t:RefreshTokenRequest =>
-          tokenRepository.findForRefreshToken(t.refreshToken).flatMap(_.fold(
+          tokenRepository.revokeByRefreshToken(t.refreshToken).flatMap(_.fold(
             Future.successful(BadRequest(errorToJson(invalidGrantError(Some(Messages(OAuth.ErrorClientNotFound, oauthClient.id))))))
-          ){ previousToken =>
-            for {
-              Some(revoked) <- tokenRepository.revoke(previousToken.accessToken)
-              token <- issueAToken(revoked.ownerId, revoked.clientId, None, revoked.scopes)
-            } yield token
+          ){ revoked =>
+            issueAToken(revoked.ownerId, revoked.clientId, None, revoked.scopes)
           })
 
         //Can not happen

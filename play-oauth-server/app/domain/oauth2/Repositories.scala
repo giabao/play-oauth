@@ -38,9 +38,3 @@ class AuthCodeRepository(implicit session:AsyncDBSession, ec: ExecutionContext) 
   }
 }
 
-class InMemoryOauthScopeRepository[T <: OauthScope](var scopes:Map[String, T] = Map.empty[String, T]) extends OauthScopeRepository[T] {
-
-  def find(id: String*): Future[Map[String, T]] = Future.successful(scopes)
-
-}
-

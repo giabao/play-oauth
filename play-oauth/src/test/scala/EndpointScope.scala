@@ -40,7 +40,7 @@ trait Endpoint extends Scope {
   }
 
   lazy val repository = new InMemoryOauthClientRepository[BasicOauthClient]()
-  lazy val scopeRepository = new InMemoryOauthScopeRepository[BasicOauthScope]()
+  lazy val allScopes = Seq.empty[String]
 
   lazy val codeRepository = new InMemoryOauthCodeRepository[BasicOauthCode](codes){
     def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthCode] = Future.successful {
@@ -73,8 +73,8 @@ trait Endpoint extends Scope {
       }
   }
 
-  lazy val authzEndpoint = new AuthorizationEndpoint[BasicOauthClient, BasicOauthScope, BasicOauthCode, User, BasicOAuthPermission, BasicOauthToken](
-      Permissions, repository, scopeRepository, codeRepository, tokenRepository) {
+  lazy val authzEndpoint = new AuthorizationEndpoint[BasicOauthClient, BasicOauthCode, User, BasicOAuthPermission, BasicOauthToken](
+      Permissions, repository, allScopes, codeRepository, tokenRepository) {
     def messagesApi = defaultMessagesApi
   }
   lazy val tokenEndpoint = new TokenEndpoint[BasicOauthClient, BasicOauthCode, User, BasicOauthToken](
@@ -141,10 +141,5 @@ trait EndPointWithClients extends Endpoint {
     ) map (c => c.id -> c)).toMap
   )
 
-  override lazy val scopeRepository: InMemoryOauthScopeRepository[BasicOauthScope] = new InMemoryOauthScopeRepository[BasicOauthScope](
-    (Seq(
-      new BasicOauthScope("scope1"),
-      new BasicOauthScope("scope2")
-    ) map (s => s.id -> s)).toMap
-  )
+  override lazy val allScopes = Seq("scope1", "scope2")
 }
