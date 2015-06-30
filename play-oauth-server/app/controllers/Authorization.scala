@@ -132,10 +132,10 @@ class OwnerPermissions(lastPermission: Option[Long])(implicit session:AsyncDBSes
  */
 class AuthorizationEndpointController(lastPermission: Option[Long])
                                      (implicit session:AsyncDBSession, ec: ExecutionContext, val messagesApi: MessagesApi)
-  extends AuthorizationEndpoint[App, BasicOauthScope, AuthCode, User, Permission, AuthToken] (
+  extends AuthorizationEndpoint[App, AuthCode, User, Permission, AuthToken] (
   new OwnerPermissions(lastPermission),
   new AppRepository(),
-  new InMemoryOauthScopeRepository[BasicOauthScope](Seq(new BasicOauthScope("basic")).map(s => s.id -> s).toMap), //TODO Create a "ConfOauthScopeRepository"
+  Seq("basic"),
   new AuthCodeFactory(),
   new AuthTokenFactory()
 )

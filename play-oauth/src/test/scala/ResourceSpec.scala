@@ -2,33 +2,33 @@ import java.time.Instant
 
 import fr.njin.playoauth.common.domain.{OauthResourceOwnerRepository, BasicOauthClient, BasicOauthToken}
 import fr.njin.playoauth.common.OAuth
-import fr.njin.playoauth.rs.Oauth2Resource._
+import fr.njin.playoauth.rs.Oauth2Resource
 import java.util.UUID
 import com.sandinh.util.TimeUtil._
 import org.specs2.specification.Scope
-import play.api.mvc.{RequestHeader, Action, EssentialAction}
+import play.api.mvc.{ActionBuilder, RequestHeader}
 import play.api.mvc.Results._
 import play.api.test.{PlaySpecification, FakeRequest, WithApplication}
 import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.{higherKinds, implicitConversions}
 
 class ResourceSpec extends PlaySpecification {
-
-
   "Oauth2Resource should" ^ {
 
     "Accept the request" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](validScope)(action)()(fakeResourceOwner).apply(FakeRequest()).run)
+      val r = run(ScopedAction(validScope, fakeResourceOwner))
       r.header.status must be equalTo OK
     }
 
     "Reject the request - Forbidden scopes" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](inValidScope)(action)()(fakeResourceOwner).apply(FakeRequest()).run)
+      val r = run(ScopedAction(inValidScope, fakeResourceOwner))
       r.header.status must be equalTo FORBIDDEN
     }
 
     "Reject the request - Unauthorized" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](validScope)(action)()(fakeEmptyResourceOwner).apply(FakeRequest()).run)
+      val r = run(ScopedAction(validScope, fakeEmptyResourceOwner))
       r.header.status must be equalTo UNAUTHORIZED
     }
   }
@@ -36,32 +36,35 @@ class ResourceSpec extends PlaySpecification {
   "Local Oauth2Resource should" ^ {
 
     "Accept the request" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](validScope)(action)()(localResourceOwner(tokenRepository, userRepo)(tokenFound)).apply(FakeRequest()).run)
+      val r = run(ScopedAction(validScope, tokenFound))
       r.header.status must be equalTo OK
     }
 
     "Reject the request - Forbidden scopes" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](inValidScope)(action)()(localResourceOwner(tokenRepository, userRepo)(tokenFound)).apply(FakeRequest()).run)
+      val r = run(ScopedAction(inValidScope, tokenFound))
       r.header.status must be equalTo FORBIDDEN
     }
 
     "Reject the request - Unauthorized" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](validScope)(action)()(localResourceOwner(tokenRepository, userRepo)(tokenNotFound)).apply(FakeRequest()).run)
+      val r = run(ScopedAction(validScope, tokenNotFound))
       r.header.status must be equalTo UNAUTHORIZED
     }
 
     "Reject the request - Token expired" in new WithApplication() with ResourceScope {
-      val r = await(scoped[User](validScope)(action)()(localResourceOwner(tokenRepository, userRepo)(tokenExpired)).apply(FakeRequest()).run)
+      val r = run(ScopedAction(validScope, tokenExpired))
       r.header.status must be equalTo UNAUTHORIZED
     }
   }
 
+  def run[R[_]](action: ActionBuilder[R]) = await(call(action(Ok), FakeRequest()))
 }
 
-trait ResourceScope extends Scope {
+trait ResourceScope extends Scope with Oauth2Resource[BasicOauthToken, User] {
+  implicit def tokenToUserInfo(token: RequestHeader => Option[String]): UserInfo =
+    toUserInfo(token, tokenRepo.find, userRepo.find)
 
-  val validScope = "Valid scope"
-  val inValidScope = "Invalid scope"
+  val validScope = Seq("Valid scope")
+  val inValidScope = Seq("Invalid scope")
 
   val userRepo = new OauthResourceOwnerRepository[User] {
     def find(id: String): Future[Option[User]] = Future.successful(if (id == user.id) Some(user) else None)
@@ -69,8 +72,7 @@ trait ResourceScope extends Scope {
 
   val user = User("username", "password", Map.empty)
   val client = new BasicOauthClient("id", "secret", OAuth.ResponseType.All, OAuth.GrantType.All)
-  val token = new BasicOauthToken("token", user.id, client.id, "Bearer", scopes = Some(Seq(validScope)))
-  val action: User => EssentialAction = u => Action { Ok("") }
+  val token = new BasicOauthToken("token", user.id, client.id, "Bearer", scopes = Some(validScope))
 
   val tokenFound: RequestHeader => Option[String] = request => Some("token")
   val tokenNotFound: RequestHeader => Option[String] = request => None
@@ -81,7 +83,7 @@ trait ResourceScope extends Scope {
   val fakeResourceOwner: Seq[String] => RequestHeader => Future[Either[Option[User], Seq[String]]] = scopes => request => {
     Future.successful {
       scopes match {
-        case Seq(`validScope`) => Left(Some(user))
+        case `validScope` => Left(Some(user))
         case _ => Right(scopes)
       }
     }
@@ -90,12 +92,11 @@ trait ResourceScope extends Scope {
   val fakeEmptyResourceOwner: Seq[String] => RequestHeader => Future[Either[Option[User], Seq[String]]] = scopes => request =>
     Future.successful(Left(None))
 
-  lazy val tokenRepository = new InMemoryOauthTokenRepository[BasicOauthToken](Set(token, expiredToken)){
+  lazy val tokenRepo = new InMemoryOauthTokenRepository[BasicOauthToken](Set(token, expiredToken)){
     def apply(ownerId: String, clientId: String, redirectUri: Option[String], scopes: Option[Seq[String]]): Future[BasicOauthToken] = Future.successful{
       val token = new BasicOauthToken(UUID.randomUUID().toString, ownerId, clientId, "example")
       tokens = tokens + token
       token
     }
   }
-
 }

@@ -1,92 +1,91 @@
 package fr.njin.playoauth.rs
 
-import play.api.Application
 import play.api.mvc.Results._
-import play.api.mvc.{Action, RequestHeader, EssentialAction}
+import play.api.mvc.Security.AuthenticatedRequest
+import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
-import play.api.libs.iteratee.Iteratee
 import fr.njin.playoauth.common.domain._
-import play.api.libs.ws.{WSAuthScheme, WSRequest, WSResponse, WS}
+import scala.language.{implicitConversions, reflectiveCalls}
 
-object Oauth2Resource {
+trait Oauth2Resource[TO <: OauthToken, U <: OauthResourceOwner] {
+  /** provided scopes => RequestHeader => Future[Either[Option[User], omit scopes]] */
+  type UserInfo = Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]]
 
-  //scopes => RequestHeader => Future[Either[Option[User], scopes?]]
-  //U is ResourceOwner
-  type ResourceOwner[U] = Seq[String] => RequestHeader => Future[Either[Option[U], Seq[String]]]
-
-  def scoped[U](scopes: String*)(action: U => EssentialAction)
-               (onUnauthorized: EssentialAction = Action { Unauthorized("") },
-                onForbidden: Seq[String] => EssentialAction = scopes => Action { Forbidden("") })
-               (implicit resourceOwner: ResourceOwner[U],
-                ec: ExecutionContext = scala.concurrent.ExecutionContext.global): EssentialAction =
-
-    EssentialAction { request => Iteratee.flatten(
-      resourceOwner(scopes)(request).map { either =>
-        either.fold( uOpt =>
-          uOpt.fold(onUnauthorized(request)) { owner =>
-            action(owner)(request)
+  /** using example:
+    * {{{
+    *   def tokenRepo: OauthTokenRepository[TO] = ???
+    *
+    *   def userRepo: OauthResourceOwnerRepository[U] = ???
+    *
+    *   val userInfo = toUserInfo(Utils.parseBearer, tokenRepo.find, userRepo.find)
+    *
+    *   def someResourceAction = ScopedAction(Seq("some_scope"), userInfo){ request =>
+    *     Ok("Hello " + request.user)
+    *   }}
+    * }}}
+    *
+    * example with token fetch from remote:
+    * {{{
+    *   def userRepo: OauthResourceOwnerRepository[U] = ???
+    *
+    *   //wsApi: WSAPI is @Injected
+    *   def tokenFetcher(value: String) =
+    *     wsApi.url("http://localhost:9000/oauth2/token")
+    *       .withAuth("CLIENT_ID","CLIENT_SECRET", WSAuthScheme.BASIC)
+    *       .withQueryString("value" -> value)
+    *       .get().map { response =>
+    *         response.status match {
+    *           case Status.OK => Json.fromJson[AuthToken](response.json).asOpt
+    *           case _ => None
+    *       }
+    *
+    *   def userInfo = toUserInfo(Utils.parseBearer, tokenFetcher, userRepo.find)
+    *
+    *   def someResourceAction = ScopedAction(Seq("some_scope"), userInfo){ request =>
+    *     Ok("Hello " + request.user)
+    *   }}
+    * }}}
+    */
+  class ScopedAction(scopes: Seq[String],
+                     userInfo: UserInfo,
+                     onUnauthorized: RequestHeader => Result,
+                     onForbidden: Seq[String] => RequestHeader => Result)
+    extends ActionBuilder[({type R[A] = AuthenticatedRequest[A, U]})#R]
+  {
+    def invokeBlock[A](req: Request[A], block: (AuthenticatedRequest[A, U]) => Future[Result]) =
+      userInfo(scopes)(req).flatMap { either =>
+        either.fold(
+          ownerOpt => ownerOpt.fold(Future successful onUnauthorized(req)) { owner =>
+            block(new AuthenticatedRequest(owner, req))
           },
-          onForbidden(_)(request)
+          Future successful onForbidden(_)(req)
         )
-      }
-    )}
+      }(this.executionContext)
+  }
 
-  def resourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
-    ( tokenRepository: String => Future[Option[TO]],
-      userRepository: String => Future[Option[U]])
-    (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
+  object ScopedAction {
+    def apply(scopes: Seq[String],
+              userInfo: UserInfo,
+              onUnauthorized: RequestHeader => Result = _ => Unauthorized,
+              onForbidden: Seq[String] => RequestHeader => Result = scopes => _ => Forbidden) =
+      new ScopedAction(scopes, userInfo, onUnauthorized, onForbidden)
+  }
 
-    scopes => request => {
-      token(request).map(tokenRepository(_).flatMap(
+  def toUserInfo(tokenValue: RequestHeader => Option[String],
+                 token: String => Future[Option[TO]],
+                 user: String => Future[Option[U]])
+                (implicit ec: ExecutionContext): UserInfo =
+    scopes => request =>
+      tokenValue(request).map(token(_).flatMap(
         _.filter(!_.hasExpired) match {
-            case None => Future successful Left(None)
-            case Some(tk) =>
-              tk.scopes
-                .map(tokenScopes => scopes.filter(tokenScopes.contains))
-                .filter(_.isEmpty) match {
-                  case None => userRepository(tk.ownerId).map(Left(_))
-                  case Some(diffScopes) => Future successful Right(diffScopes)
-                }
-         }
+          case None => Future successful Left(None)
+          case Some(tk) =>
+            tk.scopes
+              .map(tokenScopes => scopes.filter(tokenScopes.contains))
+              .filter(_.isEmpty) match {
+              case None => user(tk.ownerId).map(Left(_))
+              case Some(omitScopes) => Future successful Right(omitScopes)
+            }
+        }
       )).getOrElse(Future successful Left(None))
-    }
-
-  def localResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
-    (tokenRepository: OauthTokenRepository[TO],
-     userRepository: OauthResourceOwnerRepository[U])
-    (implicit token: RequestHeader => Option[String],
-     ec: ExecutionContext = scala.concurrent.ExecutionContext.global): ResourceOwner[U] =
-
-    resourceOwner[TO, U](tokenRepository.find, userRepository.find)(token, ec)
-
-
-  def remoteResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
-    (url: String, queryParameter: String = "value")
-    (authenticate: WSRequest => WSRequest)
-    (fromResponse: WSResponse => Option[TO])
-    (userRepository: String => Future[Option[U]])
-    (implicit app: Application,
-     token: RequestHeader => Option[String],
-     ec: ExecutionContext): ResourceOwner[U] = {
-
-    def tokenRepository(value: String) =
-      authenticate(WS.url(url).withQueryString(queryParameter -> value))
-      .get().map(fromResponse)
-
-    resourceOwner[TO, U](tokenRepository, userRepository)(token, ec)
-  }
-
-  def basicAuthRemoteResourceOwner[TO <: OauthToken, U <: OauthResourceOwner]
-    (url: String, username: String, password: String, queryParameter: String = "value")
-    (fromResponse: WSResponse => Option[TO])
-    (userRepository: String => Future[Option[U]])
-    (implicit app: Application,
-     token: RequestHeader => Option[String],
-     ec: ExecutionContext): ResourceOwner[U] = {
-
-    remoteResourceOwner[TO, U](url, queryParameter) { ws =>
-      ws.withAuth(username, password, WSAuthScheme.BASIC)
-    }(fromResponse)(userRepository)
-  }
 }
