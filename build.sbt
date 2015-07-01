@@ -76,34 +76,11 @@ lazy val root = project.in(file("."))
   .settings(unidocSettings: _*)
   .settings(site.settings ++ ghpages.settings: _*)
   .settings(
-    unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(`play-oauth-server`),
+    unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject,
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "latest/api"),
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), buildVersion + "/api"),
-    git.gitRemoteRepo := "git@github.com:njin-fr/play-oauth.git"
+    git.gitRemoteR
+      epo := "git@github.com:njin-fr/play-oauth.git"
   )
   .settings(unidocSettings: _*)
   .aggregate(`play-oauth`)
-
-
-lazy val `play-oauth-server` = (project in file("play-oauth-server"))
-  .enablePlugins(PlayScala)
-  .settings(
-    version := buildVersion,
-    organization := "fr.njin",
-    scalaVersion := "2.11.7",
-    scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
-    routesGenerator := InjectedRoutesGenerator,
-    libraryDependencies ++= Seq(
-      "de.svenkubiak"         % "jBCrypt"                         % "0.4",
-
-      "mysql"                 % "mysql-connector-java"            % "5.1.+",
-      "com.github.mauricio"   %% "mysql-async"                    % "0.2.+",
-      "org.scalikejdbc"       %% "scalikejdbc-async-play-plugin"  % "0.6.0-SNAPSHOT",
-      "org.flywaydb"          %% "flyway-play"                    % "2.1.0-SNAPSHOT",
-
-      "org.scalikejdbc"       %% "scalikejdbc-test"               % "2.2.+"     % "test",
-      "com.typesafe.play"     %% "play-specs2"                    % playVersion % "test",
-      "com.typesafe.play"     %% "play-test"                      % playVersion % "test"
-    )
-  )
-  .dependsOn(`play-oauth`)
