@@ -15,6 +15,90 @@ import Requests._
 import play.api.Logger
 import fr.njin.playoauth.Utils
 
+trait AuthzReqValidator[C <: OauthClient] extends I18nSupport {
+  def supportedResponseType: Seq[String]
+
+  def allScopes: Seq[String]
+
+  /**
+   * Alias for Authorization request validation function
+   *
+   *
+   * A validator takes an authorization request and a client then return the eventual errors.
+   */
+  private[this] type Validator =  (AuthzRequest, C) => Messages => Option[OauthError]
+
+  /**
+   * Validates response type of the request.
+   *
+   * If [[supportedResponseType]] does not contain the requested response type,
+   * a [[fr.njin.playoauth.as.OauthError.unsupportedResponseTypeError]] is returned
+   */
+  private[this] val responseTypeCodeValidator:Validator = (authzRequest, client) => messages =>
+    if(supportedResponseType.contains(authzRequest.responseType)) {
+      None
+    } else {
+      Some(unsupportedResponseTypeError())
+    }
+
+  /**
+   * Validates the scope of the request.
+   *
+   * All values of the requested scopes must be found by the scopeRepository
+   * otherwise a [[fr.njin.playoauth.as.OauthError.invalidScopeError]] is returned
+   * with the missing scopes
+   */
+  private[this] val scopeValidator:Validator = (authzRequest, client) => messages =>
+    authzRequest.scopes.map { reqScopes =>
+      val errors = reqScopes.filterNot(allScopes.contains)
+      if(errors.isEmpty) None
+      else {
+        val desc = messages(OAuth.ErrorInvalidScope, errors.mkString(" "))
+        Some(invalidScopeError(Some(desc)))
+      }
+    }.getOrElse(None)
+
+  /**
+   * Validates the access of the client
+   *
+   * If the client is not authorized a [[fr.njin.playoauth.as.OauthError.accessDeniedError]] is returned
+   */
+  private[this] val clientAuthorizedValidator:Validator = (authzRequest, client) => messages =>
+    if(client.authorized) {
+      None
+    } else {
+      Some(accessDeniedError())
+    }
+
+  /**
+   * Validates the client's response type
+   *
+   * If [[fr.njin.playoauth.common.domain.OauthClient.allowedResponseType]] does not contain the requested response type,
+   * a [[fr.njin.playoauth.as.OauthError.unauthorizedClientError]] is returned
+   */
+  private[this] val clientResponseTypeValidator:Validator = (authzRequest, client) => messages =>
+    if(client.allowedResponseType.contains(authzRequest.responseType)) {
+      None
+    } else {
+      val desc = messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType)
+      Some(unauthorizedClientError(Some(desc)))
+    }
+
+  /**
+   * All validators that will be tested for the request
+   */
+  private[this] val authzValidator = List(
+    responseTypeCodeValidator,
+    scopeValidator,
+    clientAuthorizedValidator,
+    clientResponseTypeValidator
+  )
+
+  def validateAuthzRequest(authzRequest: AuthzRequest, client: C, req: RequestHeader) =
+    authzValidator.map(_(authzRequest, client)(request2Messages(req)))
+      .find(_.isDefined)
+}
+
 /**
  * Authorization endpoint
  *
@@ -34,92 +118,16 @@ import fr.njin.playoauth.Utils
  * @tparam TO Token type
  */
 trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
-                    P <: OauthPermission, TO <: OauthToken] extends I18nSupport {
+                    P <: OauthPermission, TO <: OauthToken] extends AuthzReqValidator[C] {
 
   val logger:Logger = AuthorizationEndpoint.logger
 
   def permissions: OauthResourceOwnerPermission[P]
   def clientRepository: OauthClientRepository[C]
-  def allScopes: Seq[String]
   def codeFactory: OauthCodeFactory[CO]
   def tokenFactory: OauthTokenFactory[TO]
-  def supportedResponseType: Seq[String]
-
-  /**
-   * Alias for Authorization request validation function
-   *
-   *
-   * A validator takes an authorization request and a client then return the eventual errors.
-   */
-  type AuthzReqValidator =  (AuthzRequest, C) => Messages => Option[OauthError]
 
   type AuthzCallback = (AuthzRequest, C) => RequestHeader => Future[Result]
-
-  /**
-   * Validates response type of the request.
-   *
-   * If [[supportedResponseType]] does not contain the requested response type,
-   * a [[fr.njin.playoauth.as.OauthError.unsupportedResponseTypeError]] is returned
-   */
-  val responseTypeCodeValidator:AuthzReqValidator = (authzRequest, client) => messages =>
-    if(supportedResponseType.contains(authzRequest.responseType)) {
-      None
-    } else {
-      Some(unsupportedResponseTypeError())
-    }
-
-  /**
-   * Validates the scope of the request.
-   *
-   * All values of the requested scopes must be found by the scopeRepository
-   * otherwise a [[fr.njin.playoauth.as.OauthError.invalidScopeError]] is returned
-   * with the missing scopes
-   */
-  val scopeValidator:AuthzReqValidator = (authzRequest, client) => messages =>
-    authzRequest.scopes.map { reqScopes =>
-      val errors = reqScopes.filterNot(allScopes.contains)
-      if(errors.isEmpty) None
-      else {
-        val desc = messages(OAuth.ErrorInvalidScope, errors.mkString(" "))
-        Some(invalidScopeError(Some(desc)))
-      }
-    }.getOrElse(None)
-
-  /**
-   * Validates the access of the client
-   *
-   * If the client is not authorized a [[fr.njin.playoauth.as.OauthError.accessDeniedError]] is returned
-   */
-  val clientAuthorizedValidator:AuthzReqValidator = (authzRequest, client) => messages =>
-    if(client.authorized) {
-      None
-    } else {
-      Some(accessDeniedError())
-    }
-
-  /**
-   * Validates the client's response type
-   *
-   * If [[fr.njin.playoauth.common.domain.OauthClient.allowedResponseType]] does not contain the requested response type,
-   * a [[fr.njin.playoauth.as.OauthError.unauthorizedClientError]] is returned
-   */
-  val clientResponseTypeValidator:AuthzReqValidator = (authzRequest, client) => messages =>
-    if(client.allowedResponseType.contains(authzRequest.responseType)) {
-      None
-    } else {
-      val desc = messages(OAuth.ErrorUnauthorizedResponseType, authzRequest.responseType)
-      Some(unauthorizedClientError(Some(desc)))
-    }
-
-  /**
-   * All validators that will be tested for the request
-   */
-  lazy val authzValidator = List(
-    responseTypeCodeValidator,
-    scopeValidator,
-    clientAuthorizedValidator,
-    clientResponseTypeValidator
-  )
 
   /**
    * Helper which builds the http query from all form's errors
@@ -222,8 +230,7 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
       _.fold(onNotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId))){ client =>
         authzRequest.redirectUri.orElse(client.redirectUri).fold(
           onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
-            authzValidator.map(_(authzRequest, client)(request2Messages(request)))
-              .find(_.isDefined) match {
+            validateAuthzRequest(authzRequest, client, request) match {
             case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
             case _ => f(authzRequest, client)(request)
           }
