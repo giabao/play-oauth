@@ -228,12 +228,12 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
                     (implicit request:RequestHeader, ec:ExecutionContext): Future[Result] =
     clientRepository.find(authzRequest.clientId).flatMap{
       _.fold(onNotFound(Messages(OAuth.ErrorClientNotFound, authzRequest.clientId))){ client =>
-        authzRequest.redirectUri.orElse(client.redirectUri).fold(
-          onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
+        authzRequest.redirectUri.orElse(client.redirectUri)
+          .fold(onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
             validateAuthzRequest(authzRequest, client, request) match {
               case Some(e) => Future.successful(Redirect(url, queryWithState(e, authzRequest.state), FOUND))
-            case _ => f(authzRequest, client)(request)
-          }
+              case _ => f(authzRequest, client)(request)
+            }
         }
       }
     }
@@ -258,13 +258,15 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
    *
    * @return the result of the authorization
    */
-  def authorize(owner:RequestHeader => Future[Option[RO]])
-               (onUnauthenticated:AuthzCallback,
-                onUnauthorized:AuthzCallback,
+  def authorize(owner: RequestHeader => Future[Option[RO]])
+               (onUnauthenticated: AuthzCallback,
+                onUnauthorized: RO => AuthzCallback,
                 onNotFound: String => Future[Result],
                 onBadRequest: String => Future[Result])
                (implicit ec:ExecutionContext): RequestHeader => Future[Result] =
-    authorize(perform(owner)(onUnauthenticated, onUnauthorized))(onNotFound)(onBadRequest)
+    authorize(perform(owner)(onUnauthenticated, onUnauthorized),
+              onNotFound,
+              onBadRequest)
 
   /**
    * THE endpoint
@@ -279,19 +281,22 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
    * @param ec an execution context
    * @return the result of the authorization
    */
-  def authorize(f:AuthzCallback)
-               (onNotFound: String => Future[Result])
-               (onBadRequest: String => Future[Result])
+  def authorize(f:AuthzCallback,
+                onNotFound: String => Future[Result],
+                onBadRequest: String => Future[Result])
                (implicit ec:ExecutionContext): RequestHeader => Future[Result] =
     implicit request => {
       val query = request.queryString
       val form = authorizeRequestForm.bindFromRequest(query)
 
-      Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
-        form.withGlobalError(Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(",")))
-      }.getOrElse(form).fold(formWithErrors => {
-        onFormError(formWithErrors)(onNotFound)(onBadRequest)
-      }, onAuthzRequest(_)(onNotFound)(onBadRequest)(f)).recoverWith {
+      val errorOpt = Option(query.filter(_._2.length > 1)).filterNot(_.isEmpty).map { params =>
+        Messages(OAuth.ErrorMultipleParameters, params.keySet.mkString(","))
+      }
+      val formWithErrors = errorOpt.fold(form)(form.withGlobalError(_))
+      formWithErrors.fold(
+        onFormError(_)(onNotFound)(onBadRequest),
+        onAuthzRequest(_)(onNotFound)(onBadRequest)(f)
+      ).recoverWith {
         case t:Throwable => onServerError(form, t)(onNotFound)(onBadRequest)
       }
     }
@@ -312,12 +317,12 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
    * @return the result of the authorization
    */
   def perform(owner:RequestHeader => Future[Option[RO]])
-             (onUnauthenticated:AuthzCallback,
-              onUnauthorized:AuthzCallback)
+             (onUnauthenticated: AuthzCallback,
+              onUnauthorized: RO => AuthzCallback)
              (implicit ec:ExecutionContext): AuthzCallback =
     (authzRequest, oauthClient) => implicit request => {
       owner(request).flatMap(_.fold(onUnauthenticated(authzRequest, oauthClient)(request)) { resourceOwner =>
-        permissions(resourceOwner.id, oauthClient.id).flatMap(_.fold(onUnauthorized(authzRequest, oauthClient)(request)) { permission =>
+        permissions(resourceOwner.id, oauthClient.id).flatMap(_.fold(onUnauthorized(resourceOwner)(authzRequest, oauthClient)(request)) { permission =>
           if(permission.authorized(authzRequest)) {
             codeFactory(resourceOwner.id, oauthClient.id, authzRequest.redirectUri, authzRequest.scopes)
               .flatMap { code =>

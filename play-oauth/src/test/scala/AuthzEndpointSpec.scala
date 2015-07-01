@@ -138,11 +138,11 @@ class AuthzEndpointSpec extends Specification {
        Error HTTP status code cannot be returned to the client
        via an HTTP redirect.)""" in new EndPointWithClients {
 
-      import ExecutionContext.Implicits.global
+//      import ExecutionContext.Implicits.global
 
       val r = authzEndpoint.authorize(r => throw new Exception())(
-        (ar,c) => r => Future.successful(Results.Unauthorized("")),
-        (ar,c) => r => Future.successful(Results.Forbidden("")),
+        (ar,c) => r => Future.successful(Results.Unauthorized),
+        ro => (ar,c) => r => Future.successful(Results.Forbidden),
         error => Future.successful(Results.NotFound(error)),
         error => Future.successful(Results.BadRequest(error))
       ).apply(OauthFakeRequest(
