@@ -94,9 +94,9 @@ trait AuthzReqValidator[C <: OauthClient] extends I18nSupport {
     clientResponseTypeValidator
   )
 
-  def validateAuthzRequest(authzRequest: AuthzRequest, client: C, req: RequestHeader) =
+  def validateAuthzRequest(authzRequest: AuthzRequest, client: C, req: RequestHeader): Option[OauthError] =
     authzValidator.map(_(authzRequest, client)(request2Messages(req)))
-      .find(_.isDefined)
+      .find(_.isDefined).flatten
 }
 
 /**
@@ -231,7 +231,7 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
         authzRequest.redirectUri.orElse(client.redirectUri).fold(
           onBadRequest(Messages(OAuth.ErrorRedirectURIMissing))) { url =>
             validateAuthzRequest(authzRequest, client, request) match {
-            case Some(e) => Future.successful(Redirect(url, queryWithState(e.get, authzRequest.state), FOUND))
+              case Some(e) => Future.successful(Redirect(url, queryWithState(e, authzRequest.state), FOUND))
             case _ => f(authzRequest, client)(request)
           }
         }
