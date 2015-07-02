@@ -1,4 +1,6 @@
-# Oauth2 kit for Play! Framework 2.4 [![Build Status](https://travis-ci.org/giabao/play-oauth.png?branch=master)](https://travis-ci.org/giabao/play-oauth) [![Coverage Status](https://coveralls.io/repos/giabao/play-oauth/badge.png)](https://coveralls.io/r/giabao/play-oauth)
+# Oauth2 kit for Play! Framework 2.4
+[![Build Status](https://travis-ci.org/giabao/play-oauth.png?branch=play-2.4)](https://travis-ci.org/giabao/play-oauth)
+[![Coverage Status](https://coveralls.io/repos/giabao/play-oauth/badge.png)](https://coveralls.io/r/giabao/play-oauth)
 
 play-oauth is a type safe and reactive framework which allows you to create an [Oauth2](http://oauth.net) authorization server
 with Play Framework 2 in scala. You can also integrate an Oauth2 authorization relatively easily in your project.

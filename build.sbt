@@ -15,6 +15,7 @@ lazy val buildSettings = Seq(
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
   crossScalaVersions := Seq("2.11.7"),
+  resolvers += Resolver.bintrayRepo("scalaz", "releases"),
   autoAPIMappings := true
 )
 
