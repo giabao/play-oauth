@@ -238,7 +238,6 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
       }
     }
 
-  //FIXME Make a link to the other authorize method
   /**
    * Call the authorize with [[perform]] as the callback.
    *
@@ -258,12 +257,12 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
    *
    * @return the result of the authorization
    */
-  def authorize(owner: RequestHeader => Future[Option[RO]])
-               (onUnauthenticated: AuthzCallback,
-                onUnauthorized: RO => AuthzCallback,
-                onNotFound: String => Future[Result],
-                onBadRequest: String => Future[Result])
-               (implicit ec:ExecutionContext): RequestHeader => Future[Result] =
+  def performAuthorize(owner: RequestHeader => Future[Option[RO]],
+                       onUnauthenticated: AuthzCallback,
+                       onUnauthorized: RO => AuthzCallback,
+                       onNotFound: String => Future[Result] = e => Future successful NotFound(e),
+                       onBadRequest: String => Future[Result] = e => Future successful BadRequest(e))
+                      (implicit ec: ExecutionContext): RequestHeader => Future[Result] =
     authorize(perform(owner)(onUnauthenticated, onUnauthorized),
               onNotFound,
               onBadRequest)
@@ -282,8 +281,8 @@ trait Authorization[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner,
    * @return the result of the authorization
    */
   def authorize(f:AuthzCallback,
-                onNotFound: String => Future[Result],
-                onBadRequest: String => Future[Result])
+                onNotFound: String => Future[Result] = e => Future successful NotFound(e),
+                onBadRequest: String => Future[Result] = e => Future successful BadRequest(e))
                (implicit ec:ExecutionContext): RequestHeader => Future[Result] =
     implicit request => {
       val query = request.queryString

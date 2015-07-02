@@ -238,12 +238,12 @@ trait Token[C <: OauthClient, CO <: OauthCode, RO <: OauthResourceOwner, TO <: O
         .withHeaders("Cache-Control" -> "no-store", "Pragma" -> "no-cache")
     }
 
-  def info(token: String)
-          (authenticate: RequestHeader => Future[Option[C]])
-          (ok: TO => Future[Result])
-          (onUnauthorized: Future[Result] = Future.successful(Unauthorized("")),
-           onTokenNotFound: Future[Result] = Future.successful(NotFound("")),
-           onForbidden: Future[Result] = Future.successful(Forbidden("")))
+  def info(token: String,
+           authenticate: RequestHeader => Future[Option[C]],
+           ok: TO => Future[Result],
+           onUnauthorized: Future[Result] = Future successful Unauthorized,
+           onTokenNotFound: Future[Result] = Future successful NotFound,
+           onForbidden: Future[Result] = Future successful Forbidden)
           (implicit ec: ExecutionContext): RequestHeader => Future[Result] = request => {
 
     authenticate(request).flatMap {

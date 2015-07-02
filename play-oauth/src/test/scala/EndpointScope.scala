@@ -89,12 +89,11 @@ trait Endpoint extends Scope {
   def userByUsername: (String, String) => Future[Option[User]] = (u,p) => userRep.find(u).map(_.filter(_.password == p))
   def userOfClient: BasicOauthClient => Future[Option[User]] = client => Future.successful(Some(User(client.id, client.id, Map.empty)))
 
-  def authz(implicit ec:ExecutionContext) = authzEndpoint.authorize(r => userRep.find(Constants.Username))(
+  def authz(implicit ec:ExecutionContext) = authzEndpoint.performAuthorize(
+    r => userRep.find(Constants.Username),
     (ar,c) => r => Future.successful(Results.Unauthorized),
-    ro => (ar,c) => r => Future.successful(Results.Forbidden),
-    error => Future.successful(Results.NotFound(error)),
-    error => Future.successful(Results.BadRequest(error))
-  )(ec)
+    ro => (ar,c) => r => Future.successful(Results.Forbidden)
+  )
 
   def token(implicit ec:ExecutionContext, writes: Writes[TokenResponse], errorWrites: Writes[OauthError]) = tokenEndpoint.token(userByUsername, userOfClient)(ec, writes, errorWrites)
 }

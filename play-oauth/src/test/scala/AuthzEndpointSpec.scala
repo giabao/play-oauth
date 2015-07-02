@@ -140,11 +140,10 @@ class AuthzEndpointSpec extends Specification {
 
 //      import ExecutionContext.Implicits.global
 
-      val r = authzEndpoint.authorize(r => throw new Exception())(
-        (ar,c) => r => Future.successful(Results.Unauthorized),
-        ro => (ar,c) => r => Future.successful(Results.Forbidden),
-        error => Future.successful(Results.NotFound(error)),
-        error => Future.successful(Results.BadRequest(error))
+      val r = authzEndpoint.performAuthorize(
+        r => throw new Exception(),
+        (ar,c) => r => Future successful Results.Unauthorized,
+        ro => (ar,c) => r => Future successful Results.Forbidden
       ).apply(OauthFakeRequest(
         OAuth.OauthClientId -> ClientWithURI,
         OAuth.OauthResponseType -> OAuth.ResponseType.Code,
