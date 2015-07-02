@@ -1,6 +1,8 @@
 language: scala
 
-script: sbt ++$TRAVIS_SCALA_VERSION "test"
+script:
+  - sbt clean coverage test &&
+    sbt coverageAggregate
 after_script:
   - sbt coveralls
 
@@ -12,4 +14,4 @@ jdk:
 
 env:
   global:
-  - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M"
+  - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M"
