@@ -27,11 +27,7 @@ lazy val buildSettings = Seq(
   }
 )
 
-credentials ++= {
-  val sbt_credentials = Path.userHome / ".sbt"  / ".credentials"
-  val sbt = if (sbt_credentials.canRead) Seq(Credentials(sbt_credentials)) else Seq()
-  sbt
-}
+credentials += Credentials(Path.userHome / ".sbt"  / ".credentials")
 
 lazy val commonDependencies = Seq(
   "org.specs2" %% "specs2-core" % "3.3.1" % "test"
