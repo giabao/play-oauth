@@ -16,7 +16,15 @@ lazy val buildSettings = Seq(
   scalacOptions := Seq("-language:_", "-deprecation", "-unchecked", "-Xlint", "-feature"),
   crossScalaVersions := Seq("2.11.7"),
   resolvers += Resolver.bintrayRepo("scalaz", "releases"),
-  autoAPIMappings := true
+  autoAPIMappings := true,
+  publishTo := {
+    if (isSnapshot.value)
+      (sys.props.get("publish-to").fold[Option[Resolver]]
+        (Some(Resolver.defaultLocal))
+        ({url => Some("Local Realm" at url)}))
+    else
+      Some(Resolver.typesafeRepo("releases"))
+  }
 )
 
 lazy val commonDependencies = Seq(
@@ -54,3 +62,4 @@ lazy val `play-oauth-root` = project.in(file("."))
   )
   .settings(unidocSettings: _*)
   .aggregate(`play-oauth`)
+
