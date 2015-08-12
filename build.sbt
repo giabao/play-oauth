@@ -21,11 +21,17 @@ lazy val buildSettings = Seq(
     if (isSnapshot.value)
       (sys.props.get("publish-to").fold[Option[Resolver]]
         (Some(Resolver.defaultLocal))
-        ({url => Some("Local Realm" at url)}))
+        ({url => Some("Snapshot Realm" at url)}))
     else
       Some(Resolver.typesafeRepo("releases"))
   }
 )
+
+credentials ++= {
+  val sbt_credentials = Path.userHome / ".sbt"  / ".credentials"
+  val sbt = if (sbt_credentials.canRead) Seq(Credentials(sbt_credentials)) else Seq()
+  sbt
+}
 
 lazy val commonDependencies = Seq(
   "org.specs2" %% "specs2-core" % "3.3.1" % "test"
